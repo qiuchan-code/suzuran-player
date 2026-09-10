@@ -1,0 +1,18 @@
+{
+  "slug": "zcool-kuaile",
+  "name": "站酷快乐体",
+  "latin": "ZCOOL KuaiLe",
+  "family": "ZCOOL KuaiLe",
+  "vibe": "糖果感 · 圆头圆脑的卡通美术字，笔画粗细均匀、横竖都带笑。最\"甜\"的一款。",
+  "license": "SIL Open Font License 1.1",
+  "source": "https://github.com/maoken-fonts/zcool-kuaile",
+  "author": "站酷 ZCOOL",
+  "dir": "./assets/fonts/cute/zcool-kuaile",
+  "files": [
+    {
+      "name": "ZCOOLKuaiLe-Regular.ttf",
+      "bytes": 1511340
+    }
+  ],
+  "bytes": 1511340
+}

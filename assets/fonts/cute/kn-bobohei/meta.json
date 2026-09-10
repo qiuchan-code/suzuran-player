@@ -1,0 +1,18 @@
+{
+  "slug": "kn-bobohei",
+  "name": "荆南波波黑",
+  "latin": "KN Bobohei",
+  "family": "KN Bobohei",
+  "vibe": "手写感黑体，字面偏满、笔画外扩，带一点点\"胖\"，比漫黑更规整、更好读。",
+  "license": "SIL Open Font License 1.1",
+  "source": "https://github.com/maoken-fonts/KNBobohei",
+  "author": "荆南字坊 · 猫啃网",
+  "dir": "./assets/fonts/cute/kn-bobohei",
+  "files": [
+    {
+      "name": "KNBobohei-Bold.ttf",
+      "bytes": 5387872
+    }
+  ],
+  "bytes": 5387872
+}

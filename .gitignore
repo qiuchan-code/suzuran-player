@@ -1,0 +1,24 @@
+# ── 依赖 ──
+node_modules/
+
+# ── 构建产物 ──
+# 注意：player-ui.html **要入库**（克隆下来直接能用，不必先构建）
+labs/*.html
+*.tmp
+
+# ── 跑测试/调试时的临时产物 ──
+.cdp-*/
+*-check.png
+*-strip.png
+debug-*.png
+shrink-test.png
+
+# ── 备份 ──
+_archive/
+*.bak
+*.orig
+
+# ── 系统 ──
+Thumbs.db
+desktop.ini
+.DS_Store

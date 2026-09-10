@@ -1,0 +1,18 @@
+{
+  "slug": "black-sugar-plum-candy",
+  "name": "黑糖话梅",
+  "latin": "Black Sugar Plum Candy",
+  "family": "Black Sugar Plum Candy",
+  "vibe": "手机美化圈的可爱字体（基于韩文 BM JUA + 思源黑补字），字形胖圆、笔画收细，软萌。",
+  "license": "SIL Open Font License 1.1",
+  "source": "https://github.com/lxgw/BlackSugarPlumCandy",
+  "author": "LXGW 霞鹜（BM JUA / Adobe Source）",
+  "dir": "./assets/fonts/cute/black-sugar-plum-candy",
+  "files": [
+    {
+      "name": "BlackSugarPlumCandy-Bold.ttf",
+      "bytes": 21034042
+    }
+  ],
+  "bytes": 21034042
+}
