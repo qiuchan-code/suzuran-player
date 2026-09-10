@@ -6,7 +6,12 @@
 >
 > 建立于 2026-09 · 独立项目（从 DSH 主题实验里拆出来的）
 
-![预览](docs/shots/hero-back.jpg)
+<!--
+  截图占位：想加预览图，把图片放到 docs/preview/ 下，然后取消下面这行注释并改文件名。
+  （docs 下的截图目录已在 .gitignore 里排除，preview/ 不排除，可以正常提交）
+
+  ![预览](docs/preview/ui.png)
+-->
 
 ---
 
@@ -170,8 +175,8 @@ powershell -File src\make-shortcut.ps1
 # 计时器单元测试（40 项，假时钟驱动，不用真等）
 node src\timer.test.mjs
 
-# 截当前界面 + 打印实时状态
-node src\tools\shots\verify-live-ui.mjs docs\shots\check.png
+# 截当前界面 + 打印实时状态（图存哪都行，截图目录不入库）
+node src\tools\shots\verify-live-ui.mjs D:\tmp\check.png
 
 # 量各元素实际字号
 node src\tools\checks\measure-ui.mjs

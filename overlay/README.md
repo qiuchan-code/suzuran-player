@@ -246,19 +246,29 @@ QQ 音乐的歌词接口对不同的歌返回不同质量：
 ## 结构
 
 ```
-lyric-overlay/
+overlay/
   src/
     track-reader.mjs    读系统媒体会话（调 tools/now-playing.ps1）
     lyrics.mjs          搜歌 + 取 LRC + 解析 + 三态分类
     server.mjs          HTTP + SSE，轮询会话、切歌取词
-    build-overlay.mjs   生成 overlay.html（樱花麻薯样式）
-    overlay.html        生成物（不要手改）
+    live.mjs            浏览器端数据层（被播放器界面内联使用）
+    live-inline.mjs     把 live.mjs 内联进页面的包装
   tools/
     now-playing.ps1     WinRT 读 SMTC（-List / 默认读一次 / -Watch 轮询）
-    shoot-overlay.mjs   CDP 截图（含页面状态回读）
-  fonts/                文楷 + Nunito（浮层用）
-  shots/                截图
+    session-watch.ps1   常驻监视器（只启一次进程，省开销）
+    probe-apis.mjs      歌词/搜索接口可用性排查
+    probe-ratelimit.mjs 限流行为排查
 ```
+
+> **定位说明**
+>
+> 这个服务最初配套一个"歌词浮层"页面（`overlay.html`）。
+> 后来浮层演变成了完整的播放器界面（`player-ui.html`），
+> 浮层页与它的构建脚本、截图脚本、一次性数据转储脚本都已移除。
+>
+> 现在 `overlay/` 的定位是**播放器的歌词数据服务**：
+> `server.mjs` 由 `src/launcher.ps1` 拉起，`live.mjs` 被
+> `src/build-player-ui.mjs` 内联进界面。
 
 ## 已知限制
 

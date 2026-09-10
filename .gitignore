@@ -4,6 +4,8 @@ node_modules/
 # ── 构建产物 ──
 # 注意：player-ui.html **要入库**（克隆下来直接能用，不必先构建）
 labs/*.html
+labs/*.png
+labs/*.jpg
 *.tmp
 
 # ── 跑测试/调试时的临时产物 ──
@@ -12,6 +14,13 @@ labs/*.html
 *-strip.png
 debug-*.png
 shrink-test.png
+
+# ── 自动截图目录 ──
+# 这些图带环境状态、容易过期误导人，不入库。
+# 需要时现截：node src/tools/shots/verify-live-ui.mjs <路径>
+# 想要长期展示的预览图放 docs/preview/（那个目录不在忽略列表里）
+docs/shots/
+overlay/shots/
 
 # ── 备份 ──
 _archive/
