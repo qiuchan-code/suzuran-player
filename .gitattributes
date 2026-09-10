@@ -1,0 +1,26 @@
+# 换行符策略
+#
+# 背景：Windows 下 .bat / .ps1 需要 CRLF。
+#   · .bat 在 cmd 里对 LF 容错性差，可能行为异常
+#   · .ps1 虽然 LF 也能跑，但保持 CRLF 更稳
+# 这里强制检出为 CRLF，保证任何人克隆下来都能直接双击运行。
+
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+
+# 二进制文件别做换行转换
+*.ttf   binary
+*.otf   binary
+*.woff2 binary
+*.mp4   binary
+*.gif   binary
+*.jpg   binary
+*.jpeg  binary
+*.png   binary
+
+# 字体授权文件保持原样（别动它的换行，有些校验会看）
+assets/fonts/**/OFL.txt -text
