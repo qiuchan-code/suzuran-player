@@ -63,9 +63,39 @@ for (const f of ['README.md', 'LICENSE', '.gitignore', '.gitattributes', 'start-
   console.log(`  ${hit ? '✓' : '✗'} ${f}${hit ? '  ' + Math.round((hit.size ?? 0) / 1024) + ' KB' : ''}`)
 }
 
-console.log('\n=== 换行符配置是否生效（.bat 应为 CRLF）===')
-const raw = await fetch(`https://raw.githubusercontent.com/${REPO}/${repo.default_branch}/start-player.bat`)
-const text = await raw.text()
-const crlf = (text.match(/\r\n/g) ?? []).length
-const lf = (text.match(/(?<!\r)\n/g) ?? []).length
-console.log(`  start-player.bat  CRLF=${crlf}  裸LF=${lf}  ${crlf > 0 && lf === 0 ? '✓' : '✗'}`)
+/*
+ * 换行符检查 —— 这里有个容易搞错的点。
+ *
+ * `.gitattributes` 里的 `eol=crlf` 作用是「**检出时**转成 CRLF」，
+ * 而 git 内部存储的依然是 LF。所以：
+ *   · 去 raw.githubusercontent.com 取文件，看到的是**存储版**（LF）—— 查了没用
+ *   · 正确做法：看 `git ls-files --eol`，它会显示 index(i) 和 working-tree(w) 两侧的实际换行
+ *
+ * 期望输出形如：  i/lf  w/crlf  attr/text eol=crlf
+ */
+console.log('\n=== 换行符配置（.bat/.ps1 应为 w/crlf）===')
+const { execFileSync } = await import('node:child_process')
+let localDir = null
+try { localDir = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim() } catch { /* 不在 git 仓库里 */ }
+
+if (!localDir) {
+  console.log('  （不在本地 git 仓库中运行，跳过）')
+} else {
+  const files = ['start-player.bat', 'src/launcher.ps1', 'src/make-shortcut.ps1', 'overlay/tools/session-watch.ps1']
+  for (const f of files) {
+    let out = ''
+    try {
+      out = execFileSync('git', ['-C', localDir, 'ls-files', '--eol', f], { encoding: 'utf8' }).trim()
+    } catch { /* 忽略 */ }
+    if (!out) { console.log(`  ? ${f}  （不在版本控制中）`); continue }
+    // 形如：i/lf    w/crlf  attr/text eol=crlf    	start-player.bat
+    const iIdx = /i\/(\w+)/.exec(out)?.[1] ?? '?'
+    const wIdx = /w\/(\w+)/.exec(out)?.[1] ?? '?'
+    const attr = /attr\/([^\s]*)/.exec(out)?.[1] ?? ''
+    const wantCrlf = /\.(bat|cmd|ps1|psm1)$/i.test(f)
+    const good = wantCrlf ? wIdx === 'crlf' : true
+    console.log(`  ${good ? '✓' : '✗'} ${f.padEnd(34)} index=${iIdx} 工作区=${wIdx}  ${attr}`)
+  }
+  console.log('  说明：index=lf 是正常的（git 内部统一存 LF），关键是**工作区为 crlf**，')
+  console.log('        这样别人克隆到 Windows 上双击 .bat 才能正常跑。')
+}
