@@ -243,11 +243,51 @@ export function searchDiagnostics() {
 }
 
 /**
+ * 最近一次搜索用的哪个源（'client_search' | 'musicu' | 'none'）。
+ * 只给排查用，主流程不关心。
+ */
+let lastSearchSource = 'none'
+
+/**
+ * 排查专用：搜一首，返回"命中了什么 + 用的哪个源"。
+ *
+ * 和 searchSong 的区别只是它把内部状态也吐出来。
+ * 压测脚本（overlay/tools/stress-switch.mjs）靠这个看改动有没有生效。
+ *
+ * @param {string} title
+ * @param {string} artist
+ */
+export async function searchSongForTest(title, artist) {
+  lastSearchSource = 'none'
+  const hit = await searchSong(title, artist)
+  return {
+    title,
+    artist,
+    matched: hit ? (hit.name ?? hit.songname ?? '') + (hit.singer ? ' — ' : '') : null,
+    songmid: hit?.mid ?? hit?.songmid ?? '',
+    source: lastSearchSource,
+    throttled: throttled(),
+  }
+}
+
+/**
  * 搜歌：歌名 + 歌手 → 最匹配的一条。
  *
- * 数据源有两个，**优先用新的 musicu 接口**：
- *   · 新：`u.y.qq.com/cgi-bin/musicu.fcg` —— 实测稳定（10/10），约 350ms
- *   · 旧：`c.y.qq.com/soso/fcgi-bin/client_search_cp` —— 2026-09 起恒返 500，仅兜底
+ * 数据源有两个，**优先用旧的 client_search_cp**：
+ *
+ *   · 主：`c.y.qq.com/soso/fcgi-bin/client_search_cp`
+ *   · 备：`u.y.qq.com/cgi-bin/musicu.fcg`
+ *
+ * **为什么把顺序反过来了**（原来写反了）：
+ *   早先这里记的是"client_search_cp 恒返 500、已废"，于是只当兜底。
+ *   后来实测发现那个结论是错的 —— 它没废，只是**当时被限流了**：
+ *
+ *     两个接口同时在 1 秒间隔下连打 10 次：
+ *       musicu.fcg           5/10（5 次返 code=2001）
+ *       client_search_cp    10/10（全程 200）
+ *
+ *   也就是说**旧接口反而更抗压**，而且返回的字段是新接口的超集
+ *   （多给 interval、albummid 等）。所以现在拿它当主力。
  *
  * 匹配策略（从严到宽）：
  *   1. 歌名完全相同 + 歌手能对上 → 最佳
@@ -267,21 +307,21 @@ export async function searchSong(title, artist, wantDuration = 0) {
   let source = 'none'
   let searchError = ''
 
-  /** 试一轮：新接口 → （失败才）旧接口。 */
+  /** 试一轮：主接口（client_search_cp）→（报错才）备接口（musicu）。 */
   async function attempt(queryTitle, queryArtist, label) {
     // 限流时给 4 次机会（内部退避 2s/5s/10s），比普通网络抖动更耐心
-    const r1 = await retry(() => searchNew(queryTitle, queryArtist), 4, 350)
-    if (r1.ok && r1.value.length > 0) return { list: r1.value, source: 'musicu', error: '', throttled: false }
+    const r1 = await retry(() => searchPrimary(queryTitle, queryArtist), 4, 350)
+    if (r1.ok && r1.value.length > 0) { lastSearchSource = 'client_search'; return { list: r1.value, source: 'client_search', error: '', throttled: false } }
     let err = r1.ok ? '' : r1.error
     const wasThrottled = r1.throttled === true
 
-    // 新接口**报错**（不是返回 0 条）时才碰旧接口；但限流时旧接口也在同一限流域，跳过
+    // 主接口**报错**（不是返回 0 条）时才碰备接口；但限流时备接口也在同一限流域，跳过
     if (!r1.ok && !wasThrottled) {
-      const r2 = await retry(() => searchOld(queryTitle, queryArtist), 1, 300)
-      if (r2.ok && r2.value.length > 0) return { list: r2.value, source: 'client_search', error: '', throttled: false }
+      const r2 = await retry(() => searchFallback(queryTitle, queryArtist), 1, 300)
+      if (r2.ok && r2.value.length > 0) { lastSearchSource = 'musicu'; return { list: r2.value, source: 'musicu', error: '', throttled: false } }
       if (err === '') err = r2.error
     }
-    if (label) noteDiag({ at: Date.now(), title, artist, attempt: label, source: 'musicu', candidates: 0, error: err || undefined, result: wasThrottled ? '限流' : '无数据' })
+    if (label) noteDiag({ at: Date.now(), title, artist, attempt: label, source: 'client_search', candidates: 0, error: err || undefined, result: wasThrottled ? '限流' : '无数据' })
     return { list: [], source: 'none', error: err, throttled: wasThrottled }
   }
 
@@ -438,7 +478,46 @@ export function throttleState() {
 }
 
 /**
- * 新接口：musicu 搜索。
+ * 主接口：client_search_cp（老 soso 搜索）。
+ *
+ * **限流识别**：这个接口被限流时返的是 **HTTP 500**（不是 200+code）。
+ * 早先的代码只看 `res.ok`，把 500 当成"接口挂了 / 普通错误"，
+ * 于是既不做冷却、又疯狂重试，越试越被压 —— 当时还因此误判成"这接口已废弃"。
+ * 现在显式识别 500（以及其它非 200）为限流，抛 ThrottledError 走统一冷却。
+ *
+ * @returns {Promise<object[]>} 候选列表（可能是空数组 = 确实搜不到）
+ */
+async function searchPrimary(title, artist) {
+  const keyword = [title, artist].filter(Boolean).join(' ')
+  const url = `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&w=${encodeURIComponent(keyword)}&format=json&cr=1&new_json=1`
+
+  await gate()   // 排队限速：两次请求之间至少隔 MIN_GAP_MS
+
+  const res = await fetchWithTimeout(url)
+  if (!res.ok) {
+    // 非 200 一律当限流处理（实测限流表现就是 500），冷却后再来
+    throttledUntil = Date.now() + THROTTLE_COOLDOWN_MS
+    throw new ThrottledError(`HTTP ${res.status}`)
+  }
+
+  const text = await res.text()
+  let json
+  try { json = JSON.parse(unwrapJsonp(text)) } catch { throw new Error(`响应非 JSON（${text.length} 字节）`) }
+
+  // 有的情况下它也会返 code，一并识别
+  const code = json?.code
+  if (code !== undefined && code !== 0) {
+    throttledUntil = Date.now() + THROTTLE_COOLDOWN_MS
+    throw new ThrottledError(code)
+  }
+
+  return json?.data?.song?.list ?? []
+}
+
+/**
+ * 备接口：musicu 搜索。
+ *
+ * 只在主接口**报错**（而非返回空）时才会走到这里。
  *
  * **重要的坑**：这个接口被限流时不返 HTTP 错误，而是返
  * `{"req":{"code":2001,"data":null}}`——HTTP 200、body 正常、就是没数据。
@@ -447,7 +526,7 @@ export function throttleState() {
  *
  * @returns {Promise<object[]>} 候选列表（可能是空数组 = 确实搜不到）
  */
-async function searchNew(title, artist) {
+async function searchFallback(title, artist) {
   const query = [title, artist].filter(Boolean).join(' ')
   const body = {
     comm: { ct: 19, cv: 1859 },
@@ -474,16 +553,6 @@ async function searchNew(title, artist) {
   }
   // code=0：正常应答。空数组 = 确实没这条，属于有效结果
   return json?.req?.data?.body?.song?.list ?? []
-}
-
-/** 旧接口：client_search_cp（2026-09 起恒 500，仅兜底）。 */
-async function searchOld(title, artist) {
-  const keyword = [title, artist].filter(Boolean).join(' ')
-  const url = `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?p=1&n=10&w=${encodeURIComponent(keyword)}&format=json&cr=1&new_json=1`
-  const res = await fetchWithTimeout(url, 4000)   // 它挂的时候要等 5 秒，超时短一点
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const json = JSON.parse(unwrapJsonp(await res.text()))
-  return json?.data?.song?.list ?? []
 }
 
 /**

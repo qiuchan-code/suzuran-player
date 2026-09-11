@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { createTrackReader, trackKey } from './track-reader.mjs'
-import { lyricsFor, breakerState, searchDiagnostics, throttleState } from './lyrics.mjs'
+import { lyricsFor, breakerState, searchDiagnostics, throttleState, searchSongForTest } from './lyrics.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -320,6 +320,27 @@ const server = createServer(async (req, res) => {
       throttle: throttleState(),
       recent: searchDiagnostics(),
     }, null, 1))
+    return
+  }
+
+  // 排查用：直接拿歌名+歌手跑一次搜索，返回命中情况和用的哪个源。
+  // 用途：压测"快速切歌"时接口扛不扛得住（见 overlay/tools/stress-switch.mjs）
+  if (url.pathname === '/api/search-test') {
+    const title = url.searchParams.get('title') ?? ''
+    const artist = url.searchParams.get('artist') ?? ''
+    if (!title) {
+      res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: '缺少 title 参数' }))
+      return
+    }
+    try {
+      const r = await searchSongForTest(title, artist)
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify(r))
+    } catch (e) {
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify({ error: String(e?.message ?? e) }))
+    }
     return
   }
 
