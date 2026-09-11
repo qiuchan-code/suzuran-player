@@ -1,0 +1,15 @@
+﻿{
+    "name":  "suzuran-desktop",
+    "version":  "0.1.0",
+    "private":  true,
+    "description":  "铃兰播放器 · 桌面壁纸模式（把界面挂到桌面层，替代 Wallpaper Engine）",
+    "type":  "module",
+    "main":  "main.mjs",
+    "scripts":  {
+                    "start":  "electron .",
+                    "probe":  "electron probe.mjs"
+                },
+    "devDependencies":  {
+                            "electron":  "39.8.10"
+                        }
+}

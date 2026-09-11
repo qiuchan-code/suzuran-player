@@ -17,10 +17,28 @@
 
 ## 一句话上手
 
-双击 **`start-player.bat`**，浏览器会自动打开 `http://127.0.0.1:7790/player-ui.html`。
-在 QQ 音乐里播放任意歌曲，界面自动跟唱。
+**两种用法，选一个：**
 
-关掉那个黑窗口即停止全部服务。
+**① 桌面壁纸模式**（推荐，替代 Wallpaper Engine）
+
+双击桌面上的 **`铃兰播放器`**，界面直接变成桌面壁纸，在桌面图标下面。
+带一条悬浮控件条可以切档位和明暗。
+
+```powershell
+# 或手动启动
+cd desktop
+wscript launch-desktop.vbs
+```
+
+**② 浏览器模式**
+
+双击 **`start-player.bat`**，浏览器会打开 `http://127.0.0.1:7790/player-ui.html`。
+
+**两种都要**：在 QQ 音乐里播放任意歌曲，界面自动跟唱。
+
+关掉那个黑窗口即停止全部服务（壁纸模式从托盘退出）。
+
+> 详细说明见 `desktop/README.md`
 
 ---
 
@@ -82,6 +100,17 @@
 - **背景动效**：网格渐变色团游走 + 落雪飘落，铺满整卡，固定开启
 - 全局配色分四色系（大钟天蓝 / 日期紫 / 歌名粉 / 歌手橙），避免同色视觉疲劳
 
+### 桌面壁纸模式
+
+把整个界面挂到 Windows 桌面层（`WorkerW`），**替代 Wallpaper Engine**。
+
+- 壁纸在桌面图标**下面**，图标照常可见可点（Windows 机制，抢不走）
+- **悬浮控件条**在歌曲封面上方，可以拖档位、切明暗
+- 悬浮条的空白区域**点击穿透**到桌面，只拦截控件上的点击
+- 支持**开机自启**（`desktop/install-autostart.ps1`）
+
+原理和踩过的坑见 `desktop/README.md`。
+
 ### 字体（三套分工）
 
 | 用途 | 字体 | 授权 |
@@ -105,9 +134,18 @@
 
 ```
 suzuran-player/
-├─ start-player.bat          双击入口
+├─ start-player.bat          双击入口（浏览器模式）
 ├─ player-ui.html            界面（由 src/build-player-ui.mjs 生成，别手改）
-├─ bg-lab.html               背景动效样张
+│
+├─ desktop/                  ★ 桌面壁纸模式（替代 Wallpaper Engine）
+│   ├─ main.mjs              主进程：起服务 → 挂桌面层 → 建悬浮条 → 托盘
+│   ├─ control-bar.mjs       悬浮控件条（状态滑块 + 明暗切换）
+│   ├─ attach-desktop.ps1    把窗口 SetParent 到桌面壁纸层
+│   ├─ launch-desktop.vbs    静默启动器（纯 ASCII）
+│   ├─ install-autostart.ps1 开机自启的安装 / 卸载 / 查看
+│   ├─ README.md             ★ 桌面模式的原理和坑
+│   ├─ tools/                验证与测量脚本
+│   └─ logs/desktop.log      运行日志
 │
 ├─ src/                      构建与工具
 │   ├─ build-player-ui.mjs   ★ 界面的唯一源文件，改界面改这里
@@ -130,8 +168,7 @@ suzuran-player/
 │   │   ├─ server.mjs        HTTP + SSE 服务
 │   │   ├─ track-reader.mjs  常驻会话读取（读 PowerShell 监视器的输出流）
 │   │   ├─ lyrics.mjs        ★ 搜歌 + 取歌词 + 匹配策略
-│   │   ├─ live.mjs          浏览器端数据层（快照 + 补间 + 歌词分行）
-│   │   └─ build-overlay.mjs 歌词浮层页（另一种展示形态）
+│   │   └─ live.mjs          浏览器端数据层（快照 + 补间 + 歌词分行）
 │   └─ tools/
 │       ├─ session-watch.ps1 常驻 SMTC 监视器（PowerShell）
 │       └─ probe-*.mjs       接口可用性 / 限流诊断
@@ -141,16 +178,21 @@ suzuran-player/
 │   ├─ character/expressions/ 铃兰表情（open.gif / closed.gif）
 │   └─ fonts/
 │       ├─ theme/            界面在用的（荆南麦圆体）
-│       ├─ cute/             候选可爱字体（8 款，含 meta.json）
-│       └─ pickers/          更早一批候选（圆体系）
+│       └─ cute/             另外三款界面字体（黑糖话梅 / 荆南波波黑 / 站酷快乐体）
+│
+├─ labs/                     样张页（背景动效 / 字体），由脚本生成
 │
 └─ docs/
     ├─ 交接文档.md           ★ 先读这个
     ├─ 架构与技术决策.md      为什么这么写
     ├─ 已知问题与限制.md      踩过的坑 + 改不掉的限制
     ├─ 素材来源与授权.md      发布前必看
-    └─ shots/               验证截图
+    └─ preview/             放预览图的地方
 ```
+
+> 大量候选字体（`assets/fonts/cute/` 里另外 5 款、`pickers/` 那批）
+> 为了让仓库轻便**没有入库**，本地放在 `_archive/`（已 gitignore）。
+> 需要时用 `node src/tools/assets/fetch-cute-fonts.mjs` 重新下载。
 
 ---
 
@@ -191,6 +233,32 @@ curl http://127.0.0.1:7788/api/diagnostics
 # 样张页
 node src\tools\labs\build-bg-lab.mjs         # 背景动效
 node src\tools\labs\build-cute-font-lab.mjs  # 可爱字体
+```
+
+### 桌面壁纸模式
+
+```powershell
+cd desktop
+
+wscript launch-desktop.vbs        # 静默启动
+npx electron .                    # 前台跑，能看日志
+npx electron . --windowed         # 开成普通窗口（调试）
+npx electron . --no-bar           # 不要悬浮条
+
+# 端到端测试（悬浮条 → 播放器）
+npx electron tools/probe-e2e2.mjs
+
+# 验证桌面图标没被盖住
+npx electron tools/verify-icons.mjs
+
+# 内存测量
+npx electron tools/bench-min.mjs      # 增量：空白 → 渐变 → 视频 → 遮罩 → 模糊
+npx electron tools/bench-size.mjs     # GPU 内存与窗口面积的关系
+
+# 开机自启
+powershell -File install-autostart.ps1            # 安装（延迟 15 秒）
+powershell -File install-autostart.ps1 -Status    # 查看
+powershell -File install-autostart.ps1 -Remove    # 卸载
 ```
 
 ### 调试开关
