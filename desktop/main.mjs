@@ -88,6 +88,9 @@ let barCollapsed = false
 let barTimer = null
 let barReposition = null
 
+/* 服务看护 */
+let serverTimer = null
+
 /* ── 工具 ── */
 
 /** 异步跑命令（绝不 spawnSync）。 */
@@ -232,6 +235,46 @@ function watchAttachment(hwnd) {
       wasAttached = true
     }
   }, 5000)
+}
+
+/* ── 服务看护 ── */
+
+/**
+ * 盯着两个后台服务，挂了就拉起来。
+ *
+ * 为什么需要：服务崩掉之后，壁纸的 SSE 连接就断了 ——
+ * 表现是"壁纸不切歌了"，但日志里一切正常（压根没报错，只是收不到新帧）。
+ * 之前只能重启整个壁纸才恢复，很烦。
+ *
+ * 这里负责**把服务拉回来**；界面那端另有看护（见 build-player-ui.mjs 的
+ * liveLoop），发现 30 秒没收到数据就自己 reload 重建连接。
+ * 两边配合，服务崩了也能自动恢复。
+ */
+function watchServers() {
+  serverTimer = setInterval(async () => {
+    const bad = []
+    if (!(await portAlive(LYRIC_PORT))) bad.push({ port: LYRIC_PORT, name: '歌词服务' })
+    if (!(await portAlive(UI_PORT))) bad.push({ port: UI_PORT, name: '界面服务' })
+
+    if (bad.length === 0) return
+
+    for (const b of bad) log(`[watch] ${b.name} :${b.port} 挂了，正在拉起…`)
+
+    // 直接调 ensureServers 补拉（它内部会跳过还活着的那个）
+    try {
+      await ensureServers()
+    } catch (e) {
+      log('[watch] 拉起失败：' + e.message)
+      return
+    }
+
+    // 确认真的回来了
+    await new Promise(r => setTimeout(r, 2000))
+    const okL = await portAlive(LYRIC_PORT)
+    const okU = await portAlive(UI_PORT)
+    log(`[watch] 恢复结果：歌词=${okL ? '✓' : '✗'}  界面=${okU ? '✓' : '✗'}`)
+    if (okL && okU) log('[watch] 界面端的看护会在 30 秒内自动重连（不用管）')
+  }, 15_000)
 }
 
 /* ── 悬浮控件条 ── */
@@ -502,6 +545,11 @@ app.whenReady().then(async () => {
   await new Promise(r => setTimeout(r, 3000))
   reportMemory()
 
+  // ── 服务看护 ──
+  // 服务崩了壁纸就不切歌了，而且日志里看不出来（只是收不到新帧）。
+  // 这个定时器负责把服务拉回来；界面那端会自己重连。
+  watchServers()
+
   // ── 悬浮控件条 ──
   // 壁纸层收不到鼠标事件，状态滑块和明暗切换得靠这个浮在上面的小条补回来。
   if (!WINDOWED && barEnabled) {
@@ -540,6 +588,7 @@ app.on('window-all-closed', () => app.quit())
 
 app.on('before-quit', () => {
   if (attachTimer) clearInterval(attachTimer)
+  if (serverTimer) clearInterval(serverTimer)
   for (const p of owned) { try { p.kill() } catch {} }
   log('[exit] 已收掉自己拉起的服务进程')
 })

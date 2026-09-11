@@ -1250,10 +1250,13 @@ let shownLyric = ''
 let shownCover = ''
 /** 最近一次实时视图状态（频谱和表情都要读它）。 */
 let lastLive = null
+/** 最后一次收到数据帧的时刻。看护循环靠它判断 SSE 连接是否还活着。 */
+let liveSeenAt = Date.now()
 
 function renderLive(v) {
   if (!v.ready) return
   lastLive = v
+  liveSeenAt = Date.now()
 
   // 歌名 / 歌手
   if (v.track === null) {
@@ -1318,9 +1321,26 @@ const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:7788' : ''
 const live = createLive({ base: API_BASE, onChange: renderLive })
 live.start()
 
-// 每帧补间推进（进度条平滑、歌词到点就换）
+/**
+ * 每帧补间推进（进度条平滑、歌词到点就换）+ 连接看护。
+ *
+ * 为什么需要看护：SSE 靠 EventSource 自动重连，但**服务挂掉再起来**时
+ * 它不一定会恢复 —— 界面是经 serve.mjs 代理到 :7788 的，上游不通时
+ * 代理返 502，EventSource 可能就此卡死。
+ *
+ * 表现很迷惑：壁纸不切歌了，但日志一切正常（根本没报错，只是永远收不到新帧）。
+ * 处理：超过 STALE_MS 没收到任何数据帧就重载页面，重建整条连接。
+ * 宁可闪一下，也别一直卡着。
+ */
+const STALE_MS = 30_000
 function liveLoop() {
   live.tick()
+  if (Date.now() - liveSeenAt > STALE_MS) {
+    // 先把时刻推后，避免浏览器延迟 reload 时反复触发
+    liveSeenAt = Date.now()
+    location.reload()
+    return
+  }
   requestAnimationFrame(liveLoop)
 }
 requestAnimationFrame(liveLoop)
