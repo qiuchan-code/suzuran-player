@@ -15,7 +15,7 @@
  *   · 日语歌名全用汉字（如「夜に駆ける」写成「夜驱」）会误判成中文
  *   · 纯音乐/无歌词的曲子按曲名字符集算
  *
- * 用法：node --use-system-ca overlay/tools/playlist-stats.mjs <歌单>
+ * 用法：node --use-system-ca overlay/tools/playlist/playlist-stats.mjs <歌单>
  */
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
@@ -148,7 +148,7 @@ async function fetchAll(disstid) {
 
 const input = process.argv[2]
 if (!input) {
-  console.log('用法：node --use-system-ca overlay/tools/playlist-stats.mjs <歌单>')
+  console.log('用法：node --use-system-ca overlay/tools/playlist/playlist-stats.mjs <歌单>')
   console.log('  <歌单> 可以是纯数字 id、完整链接、或分享短链')
   process.exit(1)
 }

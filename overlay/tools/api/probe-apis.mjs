@@ -9,7 +9,7 @@
  * 早先只认出前一种，把后一种当成"接口已废弃"，于是误判了很久。
  * 这个脚本两种都测，并按"限流"而不是"挂了"来判定。
  *
- * 用法：node --use-system-ca overlay/tools/probe-apis.mjs
+ * 用法：node --use-system-ca overlay/tools/api/probe-apis.mjs
  */
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'

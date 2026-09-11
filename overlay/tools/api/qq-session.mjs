@@ -10,7 +10,7 @@
  *   import { getSession, listPlaylists } from './qq-session.mjs'
  *
  * 用法（直接跑，看当前登录态和歌单）：
- *   node --use-system-ca overlay/tools/qq-session.mjs
+ *   node --use-system-ca overlay/tools/api/qq-session.mjs
  */
 
 const PORT = Number(process.env.QQ_DEBUG_PORT ?? 9222)
@@ -187,7 +187,7 @@ if (isMain || process.argv.includes('--run')) {
   } catch (e) {
     console.log('✗ ' + e.message)
     console.log('\n先确保调试 Edge 在跑：')
-    console.log('  powershell -File overlay/tools/launch-debug-edge.ps1')
+    console.log('  powershell -File overlay/tools/api/launch-debug-edge.ps1')
     process.exit(1)
   }
   process.exit(0)

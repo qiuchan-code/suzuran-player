@@ -10,7 +10,7 @@
  * 注意：服务里有 MIN_GAP_MS=3000 的请求闸门，所以这个脚本按
  * 3.2 秒间隔打，模拟"用户快速切歌时的真实受限频率"。
  *
- * 用法：node --use-system-ca overlay/tools/stress-switch.mjs [次数]
+ * 用法：node --use-system-ca overlay/tools/api/stress-switch.mjs [次数]
  */
 
 const N = Number(process.argv[2] ?? 8)

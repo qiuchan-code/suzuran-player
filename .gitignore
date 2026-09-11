@@ -1,4 +1,4 @@
-# ── 依赖 ──
+﻿# ── 依赖 ──
 node_modules/
 
 # ── 构建产物 ──
@@ -25,6 +25,9 @@ shrink-test.png
 # 想要长期展示的预览图放 docs/preview/（那个目录不在忽略列表里）
 docs/shots/
 overlay/shots/
+
+# ── 扒下来的第三方代码（分析接口用，不入库）──
+overlay/tools/_dump/
 
 # ── 备份 / 归档 ──
 _archive/

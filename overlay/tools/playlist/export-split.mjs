@@ -12,7 +12,7 @@
  *   · 过滤掉曲名里带"已下架""无版权"之类的脏数据
  *   · 导出 songmid 清单（如果以后想用脚本而不是手动导入）
  *
- * 用法：node --use-system-ca overlay/tools/export-split.mjs <歌单> [输出目录]
+ * 用法：node --use-system-ca overlay/tools/playlist/export-split.mjs <歌单> [输出目录]
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs'
@@ -95,7 +95,7 @@ const input = process.argv[2]
 const outDir = process.argv[3] ?? join(process.env.USERPROFILE ?? '.', 'Desktop')
 
 if (!input) {
-  console.log('用法：node --use-system-ca overlay/tools/export-split.mjs <歌单> [输出目录]')
+  console.log('用法：node --use-system-ca overlay/tools/playlist/export-split.mjs <歌单> [输出目录]')
   console.log('  <歌单> 可以是纯数字 id、完整链接、或分享短链')
   process.exit(1)
 }

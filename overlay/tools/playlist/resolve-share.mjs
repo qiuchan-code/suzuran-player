@@ -4,7 +4,7 @@
  * 分享出来的链接形如 https://c6.y.qq.com/base/fcgi-bin/u?__=xxxx
  * 它是个跳转短链，需要跟着重定向找到真正的歌单 id。
  *
- * 用法：node --use-system-ca overlay/tools/resolve-share.mjs <分享链接>
+ * 用法：node --use-system-ca overlay/tools/playlist/resolve-share.mjs <分享链接>
  */
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'

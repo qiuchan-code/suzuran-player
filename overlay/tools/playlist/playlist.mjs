@@ -12,7 +12,7 @@
  *     而 QQ 音乐客户端的 cookie 存在加密的 SetCookie.dat 里，拿不出来
  *
  * 用法：
- *   node --use-system-ca overlay/tools/playlist.mjs <命令> [参数]
+ *   node --use-system-ca overlay/tools/playlist/playlist.mjs <命令> [参数]
  *
  * 命令：
  *   detail <disstid>      读歌单详情
@@ -221,7 +221,7 @@ if (!cmd || cmd === 'help') {
   console.log(`
 QQ 音乐歌单读取器
 
-  node --use-system-ca overlay/tools/playlist.mjs <命令> [参数]
+  node --use-system-ca overlay/tools/playlist/playlist.mjs <命令> [参数]
 
   detail <歌单>        读歌单详情
   shuffle <歌单>       从歌单里随机抽一首
@@ -239,7 +239,7 @@ QQ 音乐歌单读取器
   ⚠️ 只能读**公开**数据。账号里的私密歌单需要登录 cookie，读不到。
 
   例：
-    node --use-system-ca overlay/tools/playlist.mjs shuffle "https://c6.y.qq.com/base/fcgi-bin/u?__=WuidD7UF9FVj"
+    node --use-system-ca overlay/tools/playlist/playlist.mjs shuffle "https://c6.y.qq.com/base/fcgi-bin/u?__=WuidD7UF9FVj"
 `)
   process.exit(0)
 }
@@ -279,7 +279,7 @@ if (cmd === 'shuffle') {
   if (s.interval) console.log(`  时长：${mmss(s.interval)}`)
   console.log(`  mid ：${s.mid}`)
   console.log(`\n  用 mid 去查这首歌的歌词：`)
-  console.log(`    node --use-system-ca overlay/tools/playlist.mjs lyric ${s.mid}`)
+  console.log(`    node --use-system-ca overlay/tools/playlist/playlist.mjs lyric ${s.mid}`)
   process.exit(0)
 }
 

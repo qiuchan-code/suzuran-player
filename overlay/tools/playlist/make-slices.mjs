@@ -11,7 +11,7 @@
  *
  * 切的时候不会把一行劈开（每行是一首歌）。
  *
- * 用法：node --use-system-ca overlay/tools/make-slices.mjs
+ * 用法：node --use-system-ca overlay/tools/playlist/make-slices.mjs
  */
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
