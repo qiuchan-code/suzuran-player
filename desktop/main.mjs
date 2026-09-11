@@ -44,6 +44,30 @@ const argv = process.argv.slice(1)
 const WINDOWED = argv.includes('--windowed')
 const NO_SERVE = argv.includes('--no-serve')
 const barEnabled = !argv.includes('--no-bar')   // 悬浮控件条（默认开）
+const GPU_INFO = argv.includes('--gpu-info')    // 只打印 GPU 信息然后退出（排查用）
+
+/*
+ * 显卡选择。
+ *
+ * 这台机器有核显（AMD Radeon 780M，仅 512MB）和独显（RTX 4060 Laptop，4GB）。
+ * 默认情况下 Chromium 会挑核显 —— 512MB 根本不够，直接把核显占满，
+ * 连任务管理器截图都截不了。
+ *
+ * 下面这组开关让 Chromium 优先选高性能（独显）适配器：
+ *   gpu-preference=high-performance   告诉 Chromium 优先用独显
+ *   use-angle=d3d11                   用 D3D11 后端（NVIDIA 上最稳）
+ *   enable-gpu-rasterization          光栅化也走 GPU
+ *   ignore-gpu-blocklist              别因为驱动版本被拉黑就退回软渲染
+ *
+ * ⚠️ Windows 的「图形设置」里如果给 electron.exe 指定了「省电」，会覆盖这里。
+ *    见 desktop/README.md 的"切到独显"一节。
+ */
+if (!GPU_INFO) {
+  app.commandLine.appendSwitch('gpu-preference', 'high-performance')
+  app.commandLine.appendSwitch('use-angle', 'd3d11')
+  app.commandLine.appendSwitch('enable-gpu-rasterization')
+  app.commandLine.appendSwitch('ignore-gpu-blocklist')
+}
 
 const UI_PORT = 7790
 const LYRIC_PORT = 7788
@@ -345,6 +369,44 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 
 app.whenReady().then(async () => {
+  // --gpu-info：只打印用了哪块显卡，然后退出。排查显存/性能问题时用。
+  if (GPU_INFO) {
+    log('════ app.getGPUInfo("basic") ════')
+    try { log(JSON.stringify(await app.getGPUInfo('basic'), null, 1)) } catch (e) { log('失败: ' + e.message) }
+
+    const w = new BrowserWindow({ width: 300, height: 200, show: false })
+    await w.loadURL('data:text/html,<b>gpu</b>')
+    const info = JSON.parse(await w.webContents.executeJavaScript(`
+      (() => {
+        const c = document.createElement('canvas')
+        const gl = c.getContext('webgl2') || c.getContext('webgl')
+        if (!gl) return JSON.stringify({ error: '拿不到 WebGL 上下文' })
+        const d = gl.getExtension('WEBGL_debug_renderer_info')
+        return JSON.stringify({
+          vendor: d ? gl.getParameter(d.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR),
+          renderer: d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+          version: gl.getParameter(gl.VERSION),
+        })
+      })()
+    `))
+    log('\n════ WebGL 报告的适配器 ════')
+    log('  vendor  : ' + (info.vendor ?? info.error))
+    log('  renderer: ' + (info.renderer ?? ''))
+    log('  version : ' + (info.version ?? ''))
+
+    const r = String(info.renderer ?? '')
+    log('\n════ 判定 ════')
+    if (/nvidia|geforce|rtx/i.test(r)) log('  ✓ 在用独显（NVIDIA RTX 4060）')
+    else if (/amd|radeon|780m/i.test(r)) log('  ✗ 在用核显（AMD 780M，只有 512MB）')
+    else log('  ? 无法判断，看上面的 renderer')
+
+    log('\n════ GPU 特性状态 ════')
+    try { log(JSON.stringify(app.getGPUFeatureStatus(), null, 1)) } catch (e) { log('失败: ' + e.message) }
+
+    app.quit()
+    return
+  }
+
   try {
     await ensureServers()
   } catch (e) {

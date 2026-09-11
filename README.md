@@ -109,6 +109,10 @@ wscript launch-desktop.vbs
 - 悬浮条的空白区域**点击穿透**到桌面，只拦截控件上的点击
 - 支持**开机自启**（`desktop/install-autostart.ps1`）
 
+> ⚠️ **双显卡笔记本注意**：Chromium 默认会选**核显**，而核显显存小（这台是 512MB），
+> 会被占满、内存虚高约 700MB。跑一次 `desktop\set-gpu.ps1` 切到独显，
+> 内存从 1500MB 降到约 700MB。
+
 原理和踩过的坑见 `desktop/README.md`。
 
 ### 字体（三套分工）
@@ -259,6 +263,10 @@ npx electron tools/bench-size.mjs     # GPU 内存与窗口面积的关系
 powershell -File install-autostart.ps1            # 安装（延迟 15 秒）
 powershell -File install-autostart.ps1 -Status    # 查看
 powershell -File install-autostart.ps1 -Remove    # 卸载
+
+# 显卡 —— 强烈建议切到独显，内存能砍半（1500MB → 700MB）
+powershell -File set-gpu.ps1
+powershell -File set-gpu.ps1 -Status
 ```
 
 ### 调试开关

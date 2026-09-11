@@ -8,6 +8,77 @@
 或运行 install-autostart.ps1     装成开机自启
 ```
 
+> ⚠️ **如果内存占用异常高、或者显卡被占满，先跑 `set-gpu.ps1` 切到独显**，
+> 内存能砍半。见下面「切到独显」一节。
+
+---
+
+## 切到独显（**重要**）
+
+这台机器有核显（**AMD Radeon 780M，仅 512 MB**）和独显（RTX 4060 Laptop，4 GB）。
+Chromium **默认挑核显**，512 MB 根本不够 —— 直接被占满，连任务管理器截图都截不了。
+
+```powershell
+powershell -File set-gpu.ps1              # 一条命令切到独显
+powershell -File set-gpu.ps1 -Status      # 查看当前设置
+powershell -File set-gpu.ps1 -PowerSaving # 切回核显
+powershell -File set-gpu.ps1 -Remove      # 删除设置（回到默认）
+```
+
+设完**要重启应用**（托盘退出 → 重新双击）。
+
+### 效果（实测）
+
+| | 核显 780M | 独显 4060 |
+|---|---|---|
+| GPU 进程 | **1200+ MB** | **306 MB** |
+| 应用合计 | 1500-1600 MB | **689-916 MB** |
+
+**内存直接砍半。** 而且顺带解开了之前那个"744 MB 固定开销"之谜：
+那不是 Chromium 的 bug，是 **AMD 核显驱动用系统内存做帧缓冲的虚报**。
+之前所有内存分析都被这个数字带偏了。
+
+### 为什么 Chromium 的开关没用
+
+试过但**无效**（记录一下，别再试）：
+
+```
+--gpu-preference=high-performance      → 仍选核显
+--use-angle=d3d11 / d3d11on12          → 仍选核显
+--enable-gpu-rasterization             → 仍选核显
+--ignore-gpu-blocklist                 → 仍选核显
+```
+
+**原因：Windows 的「图形首选项」优先于 Chromium 的内部偏好。**
+
+真正起作用的是注册表：
+
+```
+HKCU\Software\Microsoft\DirectX\UserGpuPreferences
+  键名 = electron.exe 的完整路径
+  值   = GpuPreference=2;        (0=让 Windows 决定  1=省电  2=高性能)
+```
+
+`set-gpu.ps1` 做的就是写这一条。
+
+### 验证用的哪块显卡
+
+```powershell
+# ⚠️ 先清掉 ELECTRON_RUN_AS_NODE —— DSH 会话会注入它，
+#    不清的话 electron.exe 会退化成普通 Node 跑，报
+#    "does not provide an export named 'BrowserWindow'"
+Remove-Item Env:\ELECTRON_RUN_AS_NODE
+
+.\node_modules\electron\dist\electron.exe . --no-serve --gpu-info
+```
+
+应该看到：
+
+```
+renderer: ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028A0) Direct3D11 vs_5_0 ps_5_0, D3D11)
+判定: ✓ 在用独显（NVIDIA RTX 4060）
+```
+
 ---
 
 ## 它长什么样
@@ -43,6 +114,7 @@
 | `attach-desktop.ps1` | 把窗口 `SetParent` 到桌面壁纸层 |
 | `launch-desktop.vbs` | 静默启动器（纯 ASCII，见下方"坑"） |
 | `install-autostart.ps1` | 安装/卸载/查看开机自启 |
+| `set-gpu.ps1` | **切到独显**（内存能砍半，见上方） |
 | `tools/` | 验证与测量脚本 |
 | `logs/desktop.log` | 运行日志 |
 
@@ -75,6 +147,10 @@ npx electron tools/bench-size.mjs     # GPU 内存与窗口面积的关系
 powershell -File install-autostart.ps1            # 安装
 powershell -File install-autostart.ps1 -Status    # 查看
 powershell -File install-autostart.ps1 -Remove    # 卸载
+
+# 显卡（强烈建议切到独显，内存能砍半）
+powershell -File set-gpu.ps1
+powershell -File set-gpu.ps1 -Status
 ```
 
 ## 退出
@@ -157,15 +233,16 @@ Progman  (标题 "Program Manager")
 
 ---
 
-## 内存现状（**未解决**）
+## 内存现状
 
 | 方案 | 实测 |
 |---|---|
-| Wallpaper Engine | 617 MB（关掉壁纸只留后台时的值，实际更高） |
-| **本方案（完整界面）** | **1500-1600 MB**，其中 GPU 约 1.2 GB |
-| 极简壁纸（仅视频 + 色团，无界面） | **367 MB** |
+| **本方案（完整界面，独显）** | **689-916 MB** |
+| 本方案（完整界面，核显） | 1500-1600 MB ← 别用核显，见「切到独显」 |
+| 极简壁纸（仅视频 + 色团，无界面） | 367 MB |
+| Wallpaper Engine（仅后台） | 617 MB |
 
-增量测量结论（`tools/bench-min.mjs`）：
+增量测量结论（`tools/bench-min.mjs`，当时跑在核显上）：
 
 ```
 空白页                286 MB
@@ -176,13 +253,14 @@ Progman  (标题 "Program Manager")
 完整播放器界面        1337 MB  (+970)  ← 多出来的全在界面
 ```
 
+**注意**：上面这组数字是核显下测的。核显驱动会把帧缓冲算进 GPU 进程的
+工作集，导致数字虚高约 700 MB。切到独显后同一套界面的 GPU 进程只有 306 MB。
+
 已排除的原因：
 
-- **不是泄漏**：90 秒时间序列 1595 → 1315 MB，JS 堆恒定 1.5 MB，DOM 节点恒定 231
-- **不是某个特性**：关掉落雪 / 表情 / 频谱 / 视频，仍有 1282 MB
-- **与窗口面积线性**：`GPU ≈ 0.53 MB/百万像素 + 743 MB 固定开销`，缩到 25% 大小仍有 750 MB
+- **不是泄漏**：90 秒时间序列稳定，JS 堆恒定 1.5 MB，DOM 节点恒定 231
+- **不是某个特性**：关掉落雪 / 表情 / 频谱 / 视频，差异在误差范围内
+- ~~与窗口面积线性~~ → 那个线性关系是核显驱动的分配行为，换独显后不适用
 
-744 MB 的固定开销来源**未定位**。怀疑是全屏合成 + 30 多个元素各自成层，
-也可能是 Chromium 在这台 AMD 机器上的 GPU 内存会计口径问题。
-
-**如果内存是首要目标，应该做"极简壁纸模式"（367 MB）而不是搬整个界面过来。**
+**结论：这个方案的内存已经和 Wallpaper Engine 同一量级（甚至更低），
+前提是跑在独显上。**
