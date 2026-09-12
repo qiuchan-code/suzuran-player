@@ -277,6 +277,56 @@ function watchServers() {
   }, 15_000)
 }
 
+/* ── 单实例保护 ── */
+
+/**
+ * 清掉**别的**本应用实例（不动自己）。
+ *
+ * 为什么需要：壁纸进程崩了之后，**悬浮控件条是独立窗口，会活下来**。
+ * 再启动一次就会出现两条控件条；而悬浮条只在"光标压到控件上"时才接收点击，
+ * 所以只有最上层那个能收到事件 —— 上层僵尸条会把真正能用的那个挡住，
+ * 表现就是"点不动任何东西"。
+ *
+ * 判定"是自己人"的依据：**可执行文件路径**指向本项目的 electron.exe。
+ * 不用 `--user-data-dir` 当依据 —— 主进程的命令行**不一定**带这个参数
+ * （实测有些启动方式下就没有），只按它过滤会漏掉主进程，
+ * 结果僵尸体照样留着。
+ *
+ * 用可执行文件路径的好处：不会误杀用户机器上别的 Electron 应用
+ * （VS Code、Discord 等），因为它们的 exe 在别的地方。
+ *
+ * @param {number} [keepPid] 别杀这个 pid（默认不杀自己）
+ */
+async function killOtherInstances(keepPid = process.pid) {
+  const me = String(keepPid)
+  const exeDir = HERE.replace(/'/g, "''")   // PowerShell 单引号转义
+  const ps = `
+$mine = @()
+Get-CimInstance Win32_Process -Filter "Name='electron.exe'" -ErrorAction SilentlyContinue | ForEach-Object {
+  if ("$($_.ProcessId)" -eq '${me}') { return }
+  $path = $_.ExecutablePath
+  # 只认本项目的 electron.exe
+  if (-not $path -or $path -notlike '*${exeDir}*') { return }
+  $mine += $_.ProcessId
+}
+if ($mine.Count -gt 0) {
+  $mine | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+  [Console]::Out.WriteLine(($mine -join ','))
+} else {
+  [Console]::Out.WriteLine('NONE')
+}`
+
+  const r = await run('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], 15000)
+  const out = (r.out ?? '').trim()
+  if (out && out !== 'NONE') {
+    const n = out.split(',').filter(Boolean).length
+    log(`[single] 清掉了 ${n} 个残留实例（上次没退干净）：${out}`)
+    // 等系统把窗口和端口收干净
+    await new Promise(r => setTimeout(r, 1500))
+  }
+  return out === 'NONE' ? 0 : out.split(',').filter(Boolean).length
+}
+
 /* ── 悬浮控件条 ── */
 
 /**
@@ -411,6 +461,15 @@ function reportMemory() {
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 
+/*
+ * 显式钉死 userData 目录。
+ *
+ * 为什么不能靠 package.json 的 name 隐式推导：killOtherInstances() 靠
+ * 命令行里的这个路径来认"自己人"，万一以后改了应用名，判定会**静默失效**
+ * （不报错，只是再也清不掉残留实例）。钉死之后改名字也不会踩。
+ */
+app.setPath('userData', join(process.env.APPDATA ?? HERE, 'suzuran-desktop'))
+
 app.whenReady().then(async () => {
   // --gpu-info：只打印用了哪块显卡，然后退出。排查显存/性能问题时用。
   if (GPU_INFO) {
@@ -449,6 +508,29 @@ app.whenReady().then(async () => {
     app.quit()
     return
   }
+
+  /*
+   * ── 单实例保护 ──
+   *
+   * 踩过的坑：壁纸进程挂了、但**悬浮控件条是独立窗口活了下来**。
+   * 用户又点了一次启动，于是桌面上出现两条控件条。
+   * 而悬浮条是"光标压上去才接收点击"的，**只有最上层那个能收到事件** ——
+   * 结果就是上层那条僵尸条把下面真正能用的挡住了，点不动任何东西。
+   *
+   * 处理：启动时先把**别的**本应用实例清掉，再申请单实例锁。
+   * 这样无论上次是怎么死的（崩溃、强杀、注销），下次启动都是干净的一个。
+   */
+  await killOtherInstances()
+
+  if (!app.requestSingleInstanceLock()) {
+    log('[single] 已经有一个实例在跑（理论上不该走到这，上面应该已经把它清掉了）')
+    app.quit()
+    return
+  }
+  // 万一还有第二个实例活过来，把焦点让给已有实例然后自己退出
+  app.on('second-instance', () => {
+    log('[single] 检测到第二个实例在启动，已忽略')
+  })
 
   try {
     await ensureServers()
