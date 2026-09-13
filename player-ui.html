@@ -14,6 +14,40 @@
 @font-face { font-family: 'ZCOOL KuaiLe'; src: url('./assets/fonts/cute/zcool-kuaile/ZCOOLKuaiLe-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 </style>
 <style>
+/* ══════════ 省电：按状态冻结动画 ══════════
+
+   背景（实测数据）：
+     频谱每帧写 91 个 DOM，占约 4.6ms/帧；CSS 动画（4 个 blur(46px) 浮动层
+     + 18 个雪花 + breathe）再占 2.3ms。而这套东西**在没听歌时也一直在跑**。
+
+     更关键的是：光停 rAF 没用。试过把两个 rAF 循环停掉，界面照样跑到
+     158fps —— 因为 CSS 动画跑在**合成器线程**上，JavaScript 管不着。
+     所以必须用 animation-play-state 冻住它们。
+
+   怎么冻：只加一条 animation-play-state: paused。
+     **所有元素照常渲染，只是停在当前姿态** —— 不隐藏、不删、不改布局，
+     所以"保留当前所有元素"这条是满足的。
+
+   什么时候冻：暂停播放 / 被窗口遮挡 / 息屏 / 锁屏。
+     正在播放时一切照旧，视觉与之前完全一致。
+
+   为什么不做"降速"而是"冻住"：
+     降速要把每个动画的时长都改一遍（13s/17s/15s/19s/7s/16s…），
+     改动面大还容易漏；冻住只要一条规则，而且暂停时界面本来就该静下来。 */
+
+html.sz-frozen *,
+html.sz-frozen *::before,
+html.sz-frozen *::after {
+  animation-play-state: paused !important;
+}
+/* 过渡也停掉：冻结状态下没人在操作，留着只是空转 */
+html.sz-frozen .vignette,
+html.sz-frozen .card,
+html.sz-frozen .mStack {
+  transition: none !important;
+}
+</style>
+<style>
 :root {
   --ds-ease: cubic-bezier(.4,0,.2,1);
   --dsw-elevation-stroke-color: rgba(0,0,0,.06);
@@ -1489,6 +1523,129 @@ const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:7788' : ''
 const live = createLive({ base: API_BASE, onChange: renderLive })
 live.start()
 
+/* ══════════ 帧节流器 ══════════ */
+
+/**
+ * 统一管住两个每帧循环，**只在真需要渲染时才跑**。
+ *
+ * 为什么需要（实测数据）：
+ *   频谱每帧要对 91 个 DOM 元素逐个写 style，占约 4.6ms/帧（总帧耗时的 39%）；
+ *   CSS 动画（4 个 blur(46px) 浮动层 + 18 个雪花 + breathe）再占 2.3ms。
+ *   而这些开销**在音乐暂停时也一直在烧** —— 频谱是正弦模拟的，
+ *   它不依赖真实音频，所以永远在动。
+ *
+ * 壁纸是常驻进程，这就导致"没听歌也在发热"。
+ *
+ * 处理：分三档
+ *   active  正在播放  → 全速（保持视觉完全不变）
+ *   idle    暂停/停播  → 降到 IDLE_FPS，且频谱冻结
+ *   asleep  隐藏/息屏/锁屏 → 完全停掉
+ *
+ * 画面元素一个没少，只是"没必要动的时候不动"。
+ */
+const IDLE_FPS = 12              // 暂停时降到 12fps（时钟和状态计时够用）
+const FPS_CAP = 60               // 上限 60：屏幕 85Hz 时不必多画那 25 帧
+
+const throttle = {
+  sleeping: false,               // 页面隐藏 / 息屏 / 锁屏
+  burstUntil: 0,                 // 这个时刻之前跑满帧（切歌/切档位/拖动的短暂提速）
+  forced: undefined,             // 排查用：手动指定 playing（见 __forcePlaying）
+  get playing() { return this.forced !== undefined ? this.forced : lastLive?.playing === true },
+  /** 当前允许的最小帧间隔（ms）。 */
+  minGap() {
+    if (this.sleeping) return Infinity
+    return 1000 / (this.playing ? FPS_CAP : IDLE_FPS)
+  },
+}
+/** 主进程报来的电源状态（和 document.hidden 分开记，两者取或）。 */
+let powerSleeping = false
+window.__throttle = throttle        // 排查用
+
+/** 短时间内跑满帧。切歌、切档位、拖动进度条时用，保证手感不变。 */
+function burst(ms = 1500) { throttle.burstUntil = Date.now() + ms }
+
+/* 页面被遮挡就不再渲染。壁纸在桌面最底层，被窗口盖住时完全没必要画。 */
+document.addEventListener('visibilitychange', () => {
+  applyState()
+})
+
+/* 系统息屏 / 锁屏 / 挂起 —— 由主进程用 postMessage 通知（没设 preload）。 */
+window.addEventListener('message', (e) => {
+  const d = e.data
+  if (d && d.type === 'power') { powerSleeping = d.state !== 'active'; applyState() }
+  if (d && d.type === 'burst') burst(d.ms ?? 1500)
+})
+
+/**
+ * 统一应用"现在该跑多快"。
+ *
+ * **CSS 动画的冻结比停 rAF 重要得多。** 实测：把两个 rAF 循环停掉之后，
+ * 界面照样跑到 158fps —— 因为 18 个雪花、4 个 blur(46px) 浮动层、breathe
+ * 这些全是 **CSS 动画，跑在合成器线程上**，JS 根本管不着。
+ *
+ * 三档（画面元素一个不少，只是动与不动的区别）：
+ *   播放中        → 全速，CSS 动画正常运行
+ *   暂停/停播      → 冻住 CSS 动画，rAF 降到 12fps
+ *   遮挡/息屏/锁屏 → 再停掉视频
+ *
+ * 为什么暂停时也冻：暂停时界面本来就该"静下来"，
+ * 雪花还在飘、光斑还在晃反而不自然；而且这是一天里占比最大的状态。
+ */
+function applyState() {
+  const next = powerSleeping || document.hidden
+  if (throttle.sleeping === next) { syncFrozen(); return }
+  throttle.sleeping = next
+  syncFrozen()
+  if (!next) syncHeroVideo()
+}
+
+/** 按当前状态开关"冻住动画"的 class。 */
+function syncFrozen() {
+  const frozen = throttle.sleeping || !throttle.playing
+  document.documentElement.classList.toggle('sz-frozen', frozen)
+
+  /*
+   * 壁纸视频也一起停 —— 这是**单个最贵的开销**。
+   *
+   * 实测（renderer + gpu-process 的平均核数）：
+   *   关掉壁纸视频   省 0.825 核（占总量 26%）← 最大头
+   *   关掉频谱       省 0.399 核（13%）
+   *   关掉 blur/grain/vignette   ≈0（这些几乎不花钱，之前的猜测是错的）
+   *
+   * 视频是 loop 播放的循环动图，暂停时也一直在解码。
+   * 而"暂停时"是一天里占比最大的状态 —— 纯粹白烧。
+   *
+   * 停掉之后画面定在最后一帧，看上去就是一张静止壁纸，观感没损失。
+   * 恢复播放时 syncHeroVideo() 会让它接着动。
+   */
+  const shouldPlayVideo = !frozen
+  for (const vid of document.querySelectorAll('.hero .bgVid')) {
+    const isActive = vid.classList.contains('bgNight') === document.body.hasAttribute('data-ds-dark-theme')
+    if (shouldPlayVideo && isActive && vid.paused) { vid.play().catch(() => { }) }
+    else if ((!shouldPlayVideo || !isActive) && !vid.paused) { try { vid.pause() } catch { } }
+  }
+}
+
+/* 状态变化时重算（playing 变了、视频状态变了都要） */
+setInterval(syncFrozen, 1000)
+
+/**
+ * 排查用：强制指定"在不在播放"。
+ *
+ * 为什么需要：playing 平时来自 SSE 推送的 lastLive.playing，
+ * 那个对象在模块作用域里，**从调试端口改不动**（const 绑定，
+ * 而且 onChange 会把它覆盖回去）。量省电效果时必须能手动切状态。
+ *
+ * ⚠️ 这段代码位于第 778 行开始的大模板字符串里（构建 HTML 的那块），
+ *    所以注释和字符串里**不能出现反引号** —— 会提前闭合外层模板，
+ *    报出一堆看不懂的语法错误（踩过）。
+ */
+window.__forcePlaying = (v) => {
+  throttle.forced = v === null ? undefined : !!v
+  syncFrozen()
+  return { forced: throttle.forced ?? null, frozen: document.documentElement.classList.contains('sz-frozen') }
+}
+
 /**
  * 每帧补间推进（进度条平滑、歌词到点就换）+ 连接看护。
  *
@@ -1501,7 +1658,19 @@ live.start()
  * 宁可闪一下，也别一直卡着。
  */
 const STALE_MS = 30_000
+let lastTickAt = 0
 function liveLoop() {
+  const now = performance.now()
+  const gap = throttle.minGap()
+  /* 节流：没到该画的时候直接跳过这一帧，但循环继续挂着。
+     注意 live.tick() 也要一起跳过 —— 它内部按时间差推进歌词和进度，
+     跳过不画不影响正确性，恢复时会一次性追上。 */
+  if (gap === Infinity || (gap > 0 && now - lastTickAt < gap)) {
+    requestAnimationFrame(liveLoop)
+    return
+  }
+  lastTickAt = now
+
   live.tick()
   if (Date.now() - liveSeenAt > STALE_MS) {
     // 先把时刻推后，避免浏览器延迟 reload 时反复触发
@@ -1576,13 +1745,65 @@ function vizFrame(t) {
 }
 
 let vizRaf = 0
+let vizLastAt = 0
 function vizLoop(t) {
+  /*
+   * 频谱和表情是**这个界面里最贵的每帧工作**（实测占约 39% 帧耗时：
+   * 91 个 DOM 元素逐个写 style.transform）。
+   *
+   * 而它是**正弦模拟**的，不依赖真实音频 —— 也就是说歌停了它照样在动。
+   * 所以暂停时直接停掉整帧：柱子会停在最后那个高度，
+   * 体感上就是"音乐停了，波形也静了"，比继续空转合理。
+   */
+  if (throttle.sleeping || !throttle.playing) {
+    vizRaf = requestAnimationFrame(vizLoop)
+    return
+  }
+
+  const gap = 1000 / FPS_CAP
+  if (t - vizLastAt < gap) {
+    vizRaf = requestAnimationFrame(vizLoop)
+    return
+  }
+  vizLastAt = t
+
   vizFrame(t)
   updateExpression()      // 表情也要每帧推，抖动才跟得上节奏
   vizRaf = requestAnimationFrame(vizLoop)
 }
 buildViz()
 vizRaf = requestAnimationFrame(vizLoop)
+
+/* ══════════ 日夜壁纸视频：只让可见的那个解码 ══════════ */
+
+/**
+ * 两个 <video>（白天/夜晚）是叠着放的，靠 CSS 的 opacity 切换。
+ *
+ * 问题：**两个都 autoplay loop，也就是都在解码**，而其中一个 opacity 常年是 0。
+ * 实测两个都在跑（810x1080，各一份解码器），纯属白烧。
+ *
+ * 处理：只播当前可见的那个，另一个暂停。
+ * 切换主题时再对调 —— 因为暂停的视频保留最后一帧，
+ * 所以交叉淡入淡出的观感不受影响。
+ */
+function syncHeroVideo() {
+  const dark = document.body.hasAttribute('data-ds-dark-theme')
+  for (const v of document.querySelectorAll('.hero .bgVid')) {
+    const shouldPlay = v.classList.contains('bgNight') === dark
+    if (shouldPlay && v.paused) { v.play().catch(() => { }) }
+    else if (!shouldPlay && !v.paused) { v.pause() }
+  }
+}
+
+/* 主题切换靠 body 上的属性，盯它最省事（不用改散落各处的切换代码） */
+new MutationObserver(syncHeroVideo)
+  .observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+
+/* 视频能播了再同步一次（首帧时可能还没 loadeddata） */
+for (const v of document.querySelectorAll('.hero .bgVid')) {
+  v.addEventListener('loadeddata', syncHeroVideo, { once: true })
+}
+syncHeroVideo()
 
 /* ══════════ 铃兰表情（右下角，随节奏抖） ══════════ */
 

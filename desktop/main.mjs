@@ -24,7 +24,7 @@
  *   npx electron . --no-serve       # 不自动拉服务（服务已在别处跑）
  */
 
-import { app, BrowserWindow, screen, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, screen, Tray, Menu, nativeImage, powerMonitor } from 'electron'
 import { spawn } from 'node:child_process'
 import { existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -45,6 +45,21 @@ const WINDOWED = argv.includes('--windowed')
 const NO_SERVE = argv.includes('--no-serve')
 const barEnabled = !argv.includes('--no-bar')   // 悬浮控件条（默认开）
 const GPU_INFO = argv.includes('--gpu-info')    // 只打印 GPU 信息然后退出（排查用）
+
+/*
+ * 可选：开调试端口，用于排查性能和界面状态。
+ *
+ * 做成开关而不是常开：壁纸是常驻进程，常年挂个本地调试端口没必要，
+ * 也多一份被别的程序连上的风险。只在要诊断时用：
+ *   electron . --debug-port=9333
+ * 然后用 desktop/tools/probe-wallpaper-dom.mjs 连上去看。
+ */
+const debugPortArg = argv.find(a => a.startsWith('--debug-port='))
+const DEBUG_PORT = debugPortArg ? Number(debugPortArg.split('=')[1]) : 0
+if (DEBUG_PORT > 0) {
+  app.commandLine.appendSwitch('remote-debugging-port', String(DEBUG_PORT))
+  log(`[debug] 调试端口已开：${DEBUG_PORT}（仅排查用，平时别开）`)
+}
 
 /*
  * 显卡选择。
@@ -235,6 +250,50 @@ function watchAttachment(hwnd) {
       wasAttached = true
     }
   }, 5000)
+}
+
+/* ── 省电：系统电源状态 ── */
+
+/**
+ * 息屏 / 锁屏 / 挂起时，让界面停止渲染。
+ *
+ * 为什么这是最实在的省电：壁纸是常驻进程，一天里绝大部分时间
+ * 屏幕是黑的或被别的窗口盖住，但界面一直按 60fps 重算 91 个频谱柱子
+ * 和一堆 CSS 动画。实测这些每帧要 11.8ms —— 屏都黑了还在烧。
+ *
+ * 做法：把电源状态 postMessage 给渲染进程（界面是普通页面，
+ * 没设 preload，所以走消息）。那边收到就停掉两个 rAF 循环。
+ *
+ * @param {BrowserWindow} win
+ */
+function watchPower(win) {
+  /** 把状态推给界面。 */
+  const notify = (state) => {
+    if (win.isDestroyed()) return
+    win.webContents
+      .executeJavaScript(`window.postMessage({ type: 'power', state: ${JSON.stringify(state)} }, '*')`)
+      .catch(() => { })
+  }
+
+  const off = (why) => {
+    log(`[power] ${why} → 界面停止渲染`)
+    notify('suspended')
+    /* 顺带把后台节流交还给 Chromium，双保险 */
+    try { win.webContents.setBackgroundThrottling(true) } catch { }
+  }
+  const on = (why) => {
+    log(`[power] ${why} → 界面继续渲染`)
+    notify('active')
+    try { win.webContents.setBackgroundThrottling(false) } catch { }
+  }
+
+  powerMonitor.on('suspend', () => off('系统挂起'))
+  powerMonitor.on('resume', () => on('系统恢复'))
+  powerMonitor.on('lock-screen', () => off('锁屏'))
+  powerMonitor.on('unlock-screen', () => on('解锁'))
+  powerMonitor.on('shutdown', () => off('关机'))
+
+  log('[power] 已监听息屏/锁屏/挂起')
 }
 
 /* ── 服务看护 ── */
@@ -631,6 +690,9 @@ app.whenReady().then(async () => {
   // 服务崩了壁纸就不切歌了，而且日志里看不出来（只是收不到新帧）。
   // 这个定时器负责把服务拉回来；界面那端会自己重连。
   watchServers()
+
+  // ── 省电：息屏/锁屏时停掉界面渲染 ──
+  if (!WINDOWED) watchPower(win)
 
   // ── 悬浮控件条 ──
   // 壁纸层收不到鼠标事件，状态滑块和明暗切换得靠这个浮在上面的小条补回来。
