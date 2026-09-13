@@ -231,6 +231,57 @@ Progman  (标题 "Program Manager")
 | 壁纸压根不显示 | 用 `Start-Process -WindowStyle Hidden` 避免闪框 | 那会连 `BrowserWindow` 一起隐藏；改用 `.vbs` + `shell.Run(..., 0, ...)` |
 | 服务互相杀 | `launcher.ps1` 启动时会**强杀**占用 7788/7790 的进程 | 自启只留桌面壁纸版（它自己会拉服务） |
 
+### 杀毒软件误报（卡巴斯基实测）
+
+**现象**：卡巴报 `PDM:Exploit.Win32.Generic`（木马，行为分析），
+对象是 **DSH 自己的子进程启动器**：
+
+```
+C:\Users\56851\AppData\Roaming\npm\node_modules\@deepseek-ai\dsh\
+  node_modules\@deepseek-ai\dsh-subprocess-local\lib\runner.js
+MD5: D4C48B222E7C765C0107C176DB080F49
+```
+
+**这不是文件有问题**：`runner.js` 是 DSH 起子进程用的模块，MD5 一直没变；
+卡巴的检测方式是 `PDM`（主动防御 / 行为分析），**报的是"它运行时干了什么"，不是"文件是病毒"**。
+同一份文件在没干可疑事的时候不会被拦。
+
+**实测：同一个动作连报三次**（可复现，不是偶发）。
+
+**最可能的触发点**——"枚举进程 → 按命令行过滤 → 批量强杀"：
+
+```powershell
+# ★ 就是这个模式，别再用
+Get-CimInstance Win32_Process -Filter "Name='electron.exe'" |
+  Where-Object { $_.CommandLine -like "*xxx*" } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+这是恶意软件最典型的特征之一（扫进程表、查命令行、成批干掉），
+杀软看到这个组合基本都会报。
+
+**以后改成**：
+
+| 别做 | 改成 |
+|---|---|
+| 按名字枚举 + 过滤 + 批量强杀 | **精确到 PID 单独杀**，不写"扫描+过滤+批量"的组合 |
+| CDP 连浏览器调试端口、注 JS、读 cookie | 让用户手动操作；真要做得先问 |
+| 用 `explorer.exe` / `wscript.exe` 绕环境启动 | 只在验证自启路径时用，并提前说明 |
+| `reg add` 改注册表 | 用设置界面，或明确告知 |
+
+**注意**：`SetParent` 把窗口挂进桌面层这个核心机制，本身也属于
+"窗口层级劫持"——杀软对这个敏感是合理的，只是它这次没报在这里。
+
+**影响范围**：如果哪天真被拦住，坏的只是**执行 shell 命令**这一条路
+（`dsh-subprocess-local` 的职责），DSH 本体、对话、文件读写都不受影响。
+
+**真被拦了怎么办**（别关"行为分析"总开关，那个保护别的程序也用得上）：
+
+```
+设置 → 威胁与排除 → 排除项 → 添加
+  C:\Users\56851\AppData\Roaming\npm\node_modules\@deepseek-ai\dsh
+```
+
 ---
 
 ## 内存现状
