@@ -8,6 +8,7 @@ labs/*.png
 labs/*.jpg
 *.tmp
 commit-msg.txt
+commit-msg*.txt
 
 # ── 桌面壁纸模式的运行产物 ──
 desktop/logs/
