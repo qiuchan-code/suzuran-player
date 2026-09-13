@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>播放器界面预览 · 樱花麻薯</title>
+<style>
+@font-face { font-family: 'KN Maiyuan'; src: url('./fonts/raw/KNMaiyuan-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Nunito'; src: url('./fonts/nunito-latin-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Nunito'; src: url('./fonts/nunito-latin-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+</style>
+<style>
+:root {
+  --ds-ease: cubic-bezier(.4,0,.2,1);
+  --dsw-elevation-stroke-color: rgba(0,0,0,.06);
+  --dsw-elevation-panel: 0 0 0 .5px var(--dsw-elevation-stroke-color), 0 3px 8px 0 rgba(0,0,0,.03), 0 0 16px 0 rgba(0,0,0,.02);
+  --dsw-elevation-prominent: 0 0 0 .5px var(--dsw-elevation-stroke-color), 0 3px 8px 0 rgba(0,0,0,.04), 0 0 20px 0 rgba(0,0,0,.05);
+}
+</style>
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--font-ui);
+  padding: 28px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 界面本体：铺满视口，不做卡片 ── */
+.card {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 46% 1fr;
+  gap: 0;
+  background: var(--dsw-alias-bg-base);
+}
+/* 装饰层 */
+.card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: var(--decor-grain, none);
+  background-size: 120px 120px;
+  opacity: var(--decor-grain-opacity, 0);
+  mix-blend-mode: var(--decor-blend, normal);
+}
+.card::after {
+  content: ''; position: absolute; inset: -20%; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(42% 38% at 16% 12%, var(--decor-blob-1, transparent) 0%, transparent 62%),
+    radial-gradient(38% 34% at 88% 30%, var(--decor-blob-2, transparent) 0%, transparent 60%),
+    radial-gradient(50% 44% at 70% 96%, var(--decor-blob-3, transparent) 0%, transparent 64%);
+  opacity: var(--decor-blob-opacity, 0);
+  animation: breathe 16s ease-in-out infinite alternate;
+}
+@keyframes breathe {
+  0% { transform: scale(1) translate(0,0) }
+  100% { transform: scale(1.08) translate(1.5%, -2%) }
+}
+
+/* ── 左：壁纸 / 封面 ── */
+.left {
+  position: relative; z-index: 1;
+  overflow: hidden;
+}
+/* 视频壁纸：铺满左栏，裁切填满 */
+.left video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: 50% 42%;
+  display: block;
+}
+/* 没有视频时退回封面占位 */
+.cover {
+  position: relative; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #ffd0dc, #ffb3c6 55%, #c9a7e8);
+}
+.cover svg { display: block; width: 100%; height: 100%; }
+/* 左栏右缘柔化，和右侧内容过渡 */
+.left::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent 0%, transparent 62%,
+    color-mix(in srgb, var(--dsw-alias-bg-base) 55%, transparent) 88%,
+    var(--dsw-alias-bg-base) 100%);
+}
+/* 顶部/底部轻微压暗，让视频和界面更融合 */
+.left::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--dsw-alias-bg-base) 32%, transparent) 0%,
+    transparent 18%, transparent 82%,
+    color-mix(in srgb, var(--dsw-alias-bg-base) 38%, transparent) 100%);
+}
+
+/* ── 右：内容区 ── */
+.right {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  padding: 26px 30px 22px 28px;
+  min-width: 0; min-height: 0;
+}
+
+/* 尺寸变量：由 JS 按右栏实际宽度算，保证不同窗口下都"排得满"。
+   参考图比例：封面边长 ≈ 38% 右栏宽；歌名 ≈ 4.8%；大钟 ≈ 85% 右栏高内。 */
+.right {
+  --w: 640px;
+  --cover: calc(var(--w) * 0.38);
+  /* 字号：定值（用户定的美观值，1440 宽窗口下）
+     歌名 70 / 大钟 100 / 状态与计时 60 / 日期 50 / 歌手 40 / 当前歌词 30 */
+  --fs-title: 70px;
+  --fs-clock: 100px;
+  --fs-state: 60px;
+  --fs-date: 50px;
+  --fs-artist: 40px;
+  --fs-lyNow: 30px;
+  --fs-lySide: 17px;
+}
+/* 上方区：封面 + 歌名 + 状态计时 + 大钟
+   各元素尺寸用 --w（右栏宽度）当基准算，跟参考图的比例对齐：
+     封面边长 ≈ 38% 右栏宽；歌名 ≈ 4.8% 右栏宽；大钟 ≈ 85% 右栏高内。 */
+.stage {
+  flex: 1 1 0; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: calc(var(--w) * 0.048);
+  margin-bottom: calc(var(--w) * 0.02);
+}
+
+/* 第一行：封面 + 右侧信息。用 grid 给右列「剩余全部宽度」——
+   用 flex 的话 .nowInfo 会被压到"最长子项宽度"，歌名拿不到足够空间，
+   自动缩字号会误判成溢出。 */
+.nowRow {
+  display: grid;
+  grid-template-columns: var(--cover) minmax(0, 1fr);
+  align-items: center;
+  gap: calc(var(--w) * 0.048);
+}
+.coverBox {
+  flex: none;
+  width: var(--cover); height: var(--cover);
+  border-radius: calc(var(--cover) * 0.07); overflow: hidden;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 88%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--dsw-elevation-panel);
+  position: relative;
+}
+.coverBox img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.coverPh {
+  font-size: calc(var(--cover) * 0.19); letter-spacing: .1em;
+  color: var(--dsw-alias-button-primary-fill);
+}
+.nowInfo { display: flex; flex-direction: column; gap: calc(var(--w) * 0.004); min-width: 0; }
+.trackTitle {
+  font-size: var(--fs-title); line-height: 1.15; font-weight: 400;
+  color: var(--ink-title-fill);
+  text-shadow: var(--ink-title-ring);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.trackArtist {
+  font-size: var(--fs-artist); line-height: 1.3;
+  color: var(--ink-artist-fill);
+  text-shadow: var(--ink-artist-ring);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tState {
+  font-size: var(--fs-state); line-height: 1.28; letter-spacing: .03em;
+  color: var(--dsw-alias-state-success-primary);
+}
+.tMark {
+  font-size: var(--fs-state); line-height: 1.28; font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-state-success-primary);
+}
+.stage.paused .tState, .stage.paused .tMark { color: var(--dsw-alias-state-warn-primary); }
+.stage.idle .tState, .stage.idle .tMark { color: var(--dsw-alias-label-tertiary); }
+
+/* 第二行：大钟 + 日期 */
+.clockRow { display: flex; align-items: baseline; gap: calc(var(--w) * 0.024); }
+.tTime {
+  font-size: var(--fs-clock); line-height: 1; font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-clock-fill);
+  text-shadow: var(--ink-clock-ring);
+  letter-spacing: .01em;
+}
+.tDate {
+  font-size: var(--fs-date); font-variant-numeric: tabular-nums;
+  color: var(--ink-date-fill);
+  text-shadow: var(--ink-date-ring);
+  letter-spacing: .02em;
+}
+
+/* ── 进度条 + 时间 ── */
+.meta { flex: none; }
+.bar {
+  position: relative; height: 5px; border-radius: 999px;
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+.bar i {
+  position: absolute; inset: 0 auto 0 0; width: 42%;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--dsw-alias-button-primary-fill) 70%, transparent),
+    var(--dsw-alias-button-primary-fill));
+}
+.barKnob {
+  position: absolute; top: 50%; left: 42%; width: 10px; height: 10px;
+  border-radius: 50%; corner-shape: round; transform: translate(-50%, -50%);
+  background: var(--dsw-alias-button-floating-fill);
+  border: 2px solid var(--dsw-alias-button-primary-fill);
+  box-shadow: var(--dsw-elevation-panel);
+}
+.timeRow {
+  display: flex; justify-content: space-between; margin-top: 6px;
+  font-family: var(--font-num); font-size: 10.5px; font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-caption);
+}
+
+/* ── 歌词 ── */
+.lyrics {
+  flex: none; padding-top: calc(var(--w) * 0.022);
+  display: flex; flex-direction: column; gap: calc(var(--w) * 0.008); align-items: flex-start;
+}
+.ly {
+  font-family: var(--font-lyric);
+  line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
+.ly-prev, .ly-next {
+  font-size: var(--fs-lySide); color: var(--lyric-dim);
+  text-shadow: var(--lyric-ring-thin);
+}
+.ly-prev { opacity: .5; }
+.ly-next { opacity: .72; }
+.ly-now {
+  font-size: var(--fs-lyNow); color: var(--lyric-fill);
+  text-shadow: var(--lyric-ring);
+}
+
+/* ── 设置按钮 + 弹出面板 ── */
+.settingsBtn {
+  position: fixed; top: 18px; right: 18px; z-index: 20;
+  width: 34px; height: 34px; border-radius: 50%; corner-shape: round;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: .5px solid var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-button-floating-fill);
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer; font-size: 15px; line-height: 1;
+  box-shadow: var(--dsw-elevation-panel);
+  transition: transform .18s var(--ds-ease), color .18s var(--ds-ease);
+}
+.settingsBtn:hover { color: var(--dsw-alias-button-primary-fill); transform: rotate(24deg); }
+
+.settingsPanel {
+  position: fixed; top: 60px; right: 18px; z-index: 20;
+  width: 232px; padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: var(--dsw-alias-button-floating-fill);
+  border: .5px solid var(--dsw-alias-border-l2);
+  box-shadow: var(--dsw-elevation-prominent);
+  display: flex; flex-direction: column; gap: 14px;
+  transform-origin: top right;
+  animation: panelIn .18s var(--ds-ease);
+}
+.settingsPanel[hidden] { display: none; }
+@keyframes panelIn {
+  from { opacity: 0; transform: scale(.94) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.field { display: flex; flex-direction: column; gap: 7px; }
+.fieldLabel { font-size: 11px; color: var(--dsw-alias-label-caption); letter-spacing: .05em; }
+.seg { display: flex; gap: 5px; }
+.seg button {
+  flex: 1; height: 28px; font: inherit; font-size: 12px; cursor: pointer;
+  border: .5px solid var(--dsw-alias-border-l3); border-radius: 999px;
+  background: transparent; color: var(--dsw-alias-label-secondary);
+}
+.seg button:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.seg button[aria-pressed="true"] {
+  background: var(--dsw-alias-button-primary-fill);
+  border-color: transparent;
+  color: var(--dsw-alias-label-primary-foreground);
+}
+.fieldHint { font-size: 10.5px; color: var(--dsw-alias-label-caption); line-height: 1.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card::after, .coverGlow { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<button class="settingsBtn" id="settingsBtn" title="设置" aria-expanded="false">⚙</button>
+
+<div class="settingsPanel" id="settingsPanel" hidden>
+  <div class="field">
+    <span class="fieldLabel">明暗</span>
+    <div class="seg" id="schemeSeg">
+      <button type="button" data-scheme="light" aria-pressed="true">亮色</button>
+      <button type="button" data-scheme="dark">暗色</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <span class="fieldLabel">装饰强度</span>
+    <div class="seg" id="decorSeg">
+      <button type="button" data-decor="plain">素</button>
+      <button type="button" data-decor="soft" aria-pressed="true">柔</button>
+      <button type="button" data-decor="rich">满</button>
+    </div>
+    <span class="fieldHint">素＝无纹理，柔＝轻纸纹与光斑，满＝加重点阵与光斑。</span>
+  </div>
+
+  <div class="field">
+    <span class="fieldLabel">状态</span>
+    <div class="seg" id="modeSeg">
+      <button type="button" data-mode="study" aria-pressed="true">学习</button>
+      <button type="button" data-mode="fun">娱乐</button>
+      <button type="button" data-mode="out">外出</button>
+      <button type="button" data-mode="sleep">睡觉</button>
+    </div>
+    <span class="fieldHint">切换状态会归零重新计时；点当前状态可重新开始这一段。</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="left">
+    <!-- 视频壁纸：铃兰 雪霁·昼夜更替（从 Wallpaper Engine 壁纸中裁导出，竖版） -->
+    <video id="bgVideo" autoplay loop muted playsinline preload="auto"
+           poster="./characters/wallpaper/poster.jpg">
+      <source src="./characters/wallpaper/suzuran_yukihare_34.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <div class="right">
+    <div class="stage">
+      <div class="nowRow">
+        <!-- 封面 -->
+        <div class="coverBox" id="coverBox">
+          <span class="coverPh" id="coverPh">封面</span>
+          <img id="coverImg" alt="" hidden>
+        </div>
+        <!-- 右侧：歌名 / 歌手 / 状态 / 计时 -->
+        <div class="nowInfo">
+          <span class="trackTitle" id="trackTitle">等待播放…</span>
+          <span class="trackArtist" id="trackArtist">在 QQ 音乐里开始播放</span>
+          <div class="tState" id="tState">学习中</div>
+          <div class="tMark" id="tMark">+0:00:00</div>
+        </div>
+      </div>
+
+      <div class="clockRow">
+        <span class="tTime" id="tTime">0:00:00</span>
+        <span class="tDate" id="tDate">----/--/--</span>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="bar">
+        <i id="barFill"></i>
+        <span class="barKnob" id="barKnob"></span>
+      </div>
+      <div class="timeRow">
+        <span id="posText">0:00</span>
+        <span id="durText">0:00</span>
+      </div>
+    </div>
+
+    <div class="lyrics">
+      <div class="ly ly-prev" id="lyPrev"></div>
+      <div class="ly ly-now" id="lyNow">正在连接…</div>
+      <div class="ly ly-next" id="lyNext"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const THEMES = {"light":{"id":"sakura-mochi-light","colorScheme":"light","family":"妯辫姳楹昏柉","accent":"#ef7d9a","accentAlt":"#5fb98a","anchorHex":"#f7a8b8","tokens":{"--dsw-alias-bg-base":"#fff9fa","--dsw-alias-bg-layer-1":"#ffffff","--dsw-alias-bg-layer-2":"#ffffff","--dsw-alias-bg-layer-3":"#fff6f8","--dsw-alias-bg-overlay":"#ffeaee","--dsw-alias-bg-module-platform":"#fff5f7","--dsw-alias-bg-multi-select":"#ffeaee","--dsw-alias-bg-skeleton":"#4a243010","--dsw-alias-bg-mask-1":"#4a243033","--dsw-alias-bg-mask-2":"#4a24301a","--dsw-alias-bg-mask-3":"#4a243066","--dsw-alias-border-l1":"#4a24300f","--dsw-alias-border-l2":"#4a24301f","--dsw-alias-border-l3":"#4a243029","--dsw-alias-border-l4":"#4a24303d","--dsw-alias-border-inverted":"#ffffff1f","--dsw-alias-label-primary":"#3b2830","--dsw-alias-label-secondary":"#6f5460","--dsw-alias-label-tertiary":"#846773","--dsw-alias-label-caption":"#9b7f8b","--dsw-alias-label-dimmed":"#dcc6ce","--dsw-alias-label-primary-dimmed":"#4d333d","--dsw-alias-label-primary-foreground":"#ffffff","--dsw-alias-label-primary-inverted":"#ffffff","--dsw-alias-label-primary-bluish":"#3b2830","--dsw-alias-state-business-primary":"#5f8fd8","--dsw-alias-state-business-tertiary":"#eef3fd","--dsw-alias-state-success-primary":"#4a9e74","--dsw-alias-state-success-secondary":"#8bd0ab","--dsw-alias-state-success-tertiary":"#eaf7f0","--dsw-alias-state-warn-primary":"#b8802f","--dsw-alias-state-warn-secondary":"#e0a24e","--dsw-alias-state-warn-tertiary":"#fdf4e6","--dsw-alias-state-error-primary":"#d24b5b","--dsw-alias-state-error-secondary":"#e8656f","--dsw-alias-interactive-bg-hover":"#ef7d9a14","--dsw-alias-interactive-bg-hover-solid":"#fff0f3","--dsw-alias-interactive-bg-active":"#ef7d9a26","--dsw-alias-interactive-bg-hover-accent":"#ef7d9a26","--dsw-alias-interactive-bg-hover-danger":"#e8656f14","--dsw-alias-button-primary-fill":"#ef7d9a","--dsw-alias-button-primary-hover":"#e46b8a","--dsw-alias-button-primary-dimmed":"#ffd9e2","--dsw-alias-button-info-fill":"#5f8fd8","--dsw-alias-button-info-hover":"#507fc9","--dsw-alias-button-elevated-fill":"#ffffff","--dsw-alias-button-floating-fill":"#ffffff","--dsw-alias-button-floating-hover":"#fff6f8","--dsw-alias-button-contrast-fill":"#3b2830","--dsw-alias-button-ghost-active-fill":"#ffeaee","--dsw-alias-button-ghost-active-border":"#9b7f8b","--dsw-alias-button-ghost-active-hover":"#ffdfe5","--dsw-alias-markdown-code-block":"#fff3f5","--dsw-alias-markdown-code-block-banner":"#ffe9ed","--dsw-alias-markdown-inline-code":"#ffeef1","--dsw-alias-markdown-tag":"#ffeef1","--dsw-alias-markdown-citation":"#ffeef1","--dsw-alias-markdown-placeholder":"#fff6f8","--dsw-alias-markdown-code-segment-selected":"#ffffff","--dsw-alias-markdown-code-segment-unselected":"#fff6f8","--dsw-alias-scrollbar-hover-l1":"#cfa8b4","--dsw-alias-scrollbar-hover-l2":"#cfa8b4","--dsw-alias-tooltip-bg":"#3b2830","--dsw-alias-toast-bg":"#4d333d","--dsw-specific-bubble":"#ffeef1","--dsw-specific-bubble-highlight":"#ffffff","--dsw-specific-input-major":"#ffffff","--dsw-specific-login-input":"#ffffff","--dsw-specific-menu":"#ffffff","--dsw-specific-selector":"#fff5f7","--dsw-specific-sidebar-fill":"#fff0f3","--dsw-specific-sidebar-nav-item-hover":"#ef7d9a14","--dsw-specific-sidebar-nav-item-active":"#ffdfe6","--dsw-specific-sidebar-nav-item-active-accent":"#ef7d9a","--dsw-specific-tip":"#ffeef1","--dsw-alias-brand-primary":"#3b2830","--dsw-alias-brand-primary-invert":"#3b2830","--dsw-alias-brand-text":"#3b2830","--dsw-alias-scrollbar-bg-l1":"#e8cdd5","--dsw-alias-scrollbar-bg-l2":"#dfc0c9"}},"dark":{"id":"sakura-mochi-dark","colorScheme":"dark","family":"妯辫姳楹昏柉","accent":"#f7a8b8","accentAlt":"#8ed6ae","anchorHex":"#f7a8b8","tokens":{"--dsw-alias-bg-base":"#211920","--dsw-alias-bg-layer-1":"#2b2029","--dsw-alias-bg-layer-2":"#352731","--dsw-alias-bg-layer-3":"#3f2e39","--dsw-alias-bg-overlay":"#4a3644","--dsw-alias-bg-module-platform":"#352731","--dsw-alias-bg-multi-select":"#3f2e39","--dsw-alias-bg-skeleton":"#ffffff14","--dsw-alias-bg-mask-1":"#00000080","--dsw-alias-bg-mask-2":"#00000033","--dsw-alias-bg-mask-3":"#0000007a","--dsw-alias-border-l1":"#ffc8d81f","--dsw-alias-border-l2":"#ffc8d82e","--dsw-alias-border-l3":"#ffc8d842","--dsw-alias-border-l4":"#ffc8d85c","--dsw-alias-border-inverted":"#ffffff14","--dsw-alias-label-primary":"#ffeef3","--dsw-alias-label-secondary":"#d4b3c0","--dsw-alias-label-tertiary":"#bb9aa8","--dsw-alias-label-caption":"#a48795","--dsw-alias-label-dimmed":"#5b4250","--dsw-alias-label-primary-dimmed":"#f5d8e2","--dsw-alias-label-primary-foreground":"#211920","--dsw-alias-label-primary-inverted":"#2b2029","--dsw-alias-label-primary-bluish":"#ffeef3","--dsw-alias-state-business-primary":"#a8c4f0","--dsw-alias-state-business-tertiary":"#2a3446","--dsw-alias-state-success-primary":"#8ed6ae","--dsw-alias-state-success-secondary":"#b0e6c8","--dsw-alias-state-success-tertiary":"#1f3a2c","--dsw-alias-state-warn-primary":"#f0c884","--dsw-alias-state-warn-secondary":"#f7dba8","--dsw-alias-state-warn-tertiary":"#3d3118","--dsw-alias-state-error-primary":"#f78f9b","--dsw-alias-state-error-secondary":"#ffb3bc","--dsw-alias-interactive-bg-hover":"#f7a8b81f","--dsw-alias-interactive-bg-hover-solid":"#3f2e39","--dsw-alias-interactive-bg-active":"#f7a8b833","--dsw-alias-interactive-bg-hover-accent":"#f7a8b83d","--dsw-alias-interactive-bg-hover-danger":"#f78f9b26","--dsw-alias-button-primary-fill":"#f7a8b8","--dsw-alias-button-primary-hover":"#ffc0cd","--dsw-alias-button-primary-dimmed":"#5c3a47","--dsw-alias-button-info-fill":"#a8c4f0","--dsw-alias-button-info-hover":"#c0d5f7","--dsw-alias-button-elevated-fill":"#3f2e39","--dsw-alias-button-floating-fill":"#352731","--dsw-alias-button-floating-hover":"#3f2e39","--dsw-alias-button-contrast-fill":"#ffeef3","--dsw-alias-button-ghost-active-fill":"#3f2e39","--dsw-alias-button-ghost-active-border":"#8a6a78","--dsw-alias-button-ghost-active-hover":"#5c3a47","--dsw-alias-markdown-code-block":"#241b22","--dsw-alias-markdown-code-block-banner":"#352731","--dsw-alias-markdown-inline-code":"#3f2e39","--dsw-alias-markdown-tag":"#3f2e39","--dsw-alias-markdown-citation":"#3f2e39","--dsw-alias-markdown-placeholder":"#352731","--dsw-alias-markdown-code-segment-selected":"#3f2e39","--dsw-alias-markdown-code-segment-unselected":"#241b22","--dsw-alias-scrollbar-hover-l1":"#6d4f5e","--dsw-alias-scrollbar-hover-l2":"#6d4f5e","--dsw-alias-tooltip-bg":"#4a3644","--dsw-alias-toast-bg":"#5c3a47","--dsw-specific-bubble":"#3f2e39","--dsw-specific-bubble-highlight":"#352731","--dsw-specific-input-major":"#352731","--dsw-specific-login-input":"#352731","--dsw-specific-menu":"#3f2e39","--dsw-specific-selector":"#352731","--dsw-specific-sidebar-fill":"#1d151b","--dsw-specific-sidebar-nav-item-hover":"#f7a8b81f","--dsw-specific-sidebar-nav-item-active":"#3f2e39","--dsw-specific-sidebar-nav-item-active-accent":"#f7a8b8","--dsw-specific-tip":"#3f2e39","--dsw-alias-brand-primary":"#ffeef3","--dsw-alias-brand-primary-invert":"#ffeef3","--dsw-alias-brand-text":"#ffeef3","--dsw-alias-scrollbar-bg-l1":"#4a3644","--dsw-alias-scrollbar-bg-l2":"#5b4250"}}}
+const FLOWER = {"light":{"fill":"#ffb3c6","dim":"#f5c9d4","stroke":"#e8557d"},"dark":{"fill":"#ffc2d1","dim":"#c99aa9","stroke":"#c2436a"}}
+const DECOR = {"plain":{"light":{"--decor-grain":"none","--decor-grain-opacity":"0","--decor-blob-opacity":"0","--decor-blob-1":"transparent","--decor-blob-2":"transparent","--decor-blob-3":"transparent","--decor-radius":"18px"},"dark":{"--decor-grain":"none","--decor-grain-opacity":"0","--decor-blob-opacity":"0","--decor-blob-1":"transparent","--decor-blob-2":"transparent","--decor-blob-3":"transparent","--decor-radius":"18px"}},"soft":{"light":{"--decor-grain":"url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E\")","--decor-grain-opacity":"0.06","--decor-blend":"multiply","--decor-blob-opacity":"0.7","--decor-blob-1":"color-mix(in srgb, #ef7d9a 20%, transparent)","--decor-blob-2":"color-mix(in srgb, #5fb98a 16%, transparent)","--decor-blob-3":"color-mix(in srgb, #ef7d9a 12%, transparent)","--decor-radius":"22px"},"dark":{"--decor-grain":"url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E\")","--decor-grain-opacity":"0.05","--decor-blend":"screen","--decor-blob-opacity":"0.55","--decor-blob-1":"color-mix(in srgb, #f7a8b8 20%, transparent)","--decor-blob-2":"color-mix(in srgb, #8ed6ae 16%, transparent)","--decor-blob-3":"color-mix(in srgb, #f7a8b8 12%, transparent)","--decor-radius":"22px"}},"rich":{"light":{"--decor-grain":"url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E\"), url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Ccircle cx='1.2' cy='1.2' r='1' fill='%23000' opacity='.055'/%3E%3C/svg%3E\")","--decor-grain-opacity":"0.09","--decor-blend":"multiply","--decor-blob-opacity":"1","--decor-blob-1":"color-mix(in srgb, #ef7d9a 30%, transparent)","--decor-blob-2":"color-mix(in srgb, #5fb98a 24%, transparent)","--decor-blob-3":"color-mix(in srgb, #ef7d9a 12%, transparent)","--decor-radius":"26px"},"dark":{"--decor-grain":"url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E\"), url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Ccircle cx='1.2' cy='1.2' r='1' fill='%23000' opacity='.055'/%3E%3C/svg%3E\")","--decor-grain-opacity":"0.08","--decor-blend":"screen","--decor-blob-opacity":"0.85","--decor-blob-1":"color-mix(in srgb, #f7a8b8 30%, transparent)","--decor-blob-2":"color-mix(in srgb, #8ed6ae 24%, transparent)","--decor-blob-3":"color-mix(in srgb, #f7a8b8 12%, transparent)","--decor-radius":"26px"}}}
+const RING = {"light":{"thick":"2.20px 0.00px 0 #e8557d, -2.20px 0.00px 0 #e8557d, 0.00px 2.20px 0 #e8557d, 0.00px -2.20px 0 #e8557d, 1.56px 1.56px 0 #e8557d, -1.56px -1.56px 0 #e8557d, 1.56px -1.56px 0 #e8557d, -1.56px 1.56px 0 #e8557d","thin":"1.50px 0.00px 0 #e8557d, -1.50px 0.00px 0 #e8557d, 0.00px 1.50px 0 #e8557d, 0.00px -1.50px 0 #e8557d, 1.06px 1.06px 0 #e8557d, -1.06px -1.06px 0 #e8557d, 1.06px -1.06px 0 #e8557d, -1.06px 1.06px 0 #e8557d"},"dark":{"thick":"2.20px 0.00px 0 #c2436a, -2.20px 0.00px 0 #c2436a, 0.00px 2.20px 0 #c2436a, 0.00px -2.20px 0 #c2436a, 1.56px 1.56px 0 #c2436a, -1.56px -1.56px 0 #c2436a, 1.56px -1.56px 0 #c2436a, -1.56px 1.56px 0 #c2436a","thin":"1.50px 0.00px 0 #c2436a, -1.50px 0.00px 0 #c2436a, 0.00px 1.50px 0 #c2436a, 0.00px -1.50px 0 #c2436a, 1.06px 1.06px 0 #c2436a, -1.06px -1.06px 0 #c2436a, 1.06px -1.06px 0 #c2436a, -1.06px 1.06px 0 #c2436a"}}
+const INK_CSS = {"light":{"clockFill":"#5aa9d6","clockRing":"2.60px 0.00px 0 rgba(255,255,255,.95), -2.60px 0.00px 0 rgba(255,255,255,.95), 0.00px 2.60px 0 rgba(255,255,255,.95), 0.00px -2.60px 0 rgba(255,255,255,.95), 1.84px 1.84px 0 rgba(255,255,255,.95), -1.84px -1.84px 0 rgba(255,255,255,.95), 1.84px -1.84px 0 rgba(255,255,255,.95), -1.84px 1.84px 0 rgba(255,255,255,.95), 4.20px 0.00px 0 rgba(90,169,214,.5), -4.20px 0.00px 0 rgba(90,169,214,.5), 0.00px 4.20px 0 rgba(90,169,214,.5), 0.00px -4.20px 0 rgba(90,169,214,.5), 2.97px 2.97px 0 rgba(90,169,214,.5), -2.97px -2.97px 0 rgba(90,169,214,.5), 2.97px -2.97px 0 rgba(90,169,214,.5), -2.97px 2.97px 0 rgba(90,169,214,.5)","dateFill":"#8b9ad4","dateRing":"1.80px 0.00px 0 rgba(255,255,255,.9), -1.80px 0.00px 0 rgba(255,255,255,.9), 0.00px 1.80px 0 rgba(255,255,255,.9), 0.00px -1.80px 0 rgba(255,255,255,.9), 1.27px 1.27px 0 rgba(255,255,255,.9), -1.27px -1.27px 0 rgba(255,255,255,.9), 1.27px -1.27px 0 rgba(255,255,255,.9), -1.27px 1.27px 0 rgba(255,255,255,.9)","titleFill":"#ef7d9a","titleRing":"1.80px 0.00px 0 rgba(255,255,255,.9), -1.80px 0.00px 0 rgba(255,255,255,.9), 0.00px 1.80px 0 rgba(255,255,255,.9), 0.00px -1.80px 0 rgba(255,255,255,.9), 1.27px 1.27px 0 rgba(255,255,255,.9), -1.27px -1.27px 0 rgba(255,255,255,.9), 1.27px -1.27px 0 rgba(255,255,255,.9), -1.27px 1.27px 0 rgba(255,255,255,.9)","artistFill":"#e8a06a","artistRing":"1.30px 0.00px 0 rgba(200,120,60,.5), -1.30px 0.00px 0 rgba(200,120,60,.5), 0.00px 1.30px 0 rgba(200,120,60,.5), 0.00px -1.30px 0 rgba(200,120,60,.5), 0.92px 0.92px 0 rgba(200,120,60,.5), -0.92px -0.92px 0 rgba(200,120,60,.5), 0.92px -0.92px 0 rgba(200,120,60,.5), -0.92px 0.92px 0 rgba(200,120,60,.5)"},"dark":{"clockFill":"#a8d8f0","clockRing":"2.60px 0.00px 0 rgba(26,38,52,.95), -2.60px 0.00px 0 rgba(26,38,52,.95), 0.00px 2.60px 0 rgba(26,38,52,.95), 0.00px -2.60px 0 rgba(26,38,52,.95), 1.84px 1.84px 0 rgba(26,38,52,.95), -1.84px -1.84px 0 rgba(26,38,52,.95), 1.84px -1.84px 0 rgba(26,38,52,.95), -1.84px 1.84px 0 rgba(26,38,52,.95), 4.20px 0.00px 0 rgba(168,216,240,.45), -4.20px 0.00px 0 rgba(168,216,240,.45), 0.00px 4.20px 0 rgba(168,216,240,.45), 0.00px -4.20px 0 rgba(168,216,240,.45), 2.97px 2.97px 0 rgba(168,216,240,.45), -2.97px -2.97px 0 rgba(168,216,240,.45), 2.97px -2.97px 0 rgba(168,216,240,.45), -2.97px 2.97px 0 rgba(168,216,240,.45)","dateFill":"#b8c2ef","dateRing":"1.80px 0.00px 0 rgba(30,32,58,.9), -1.80px 0.00px 0 rgba(30,32,58,.9), 0.00px 1.80px 0 rgba(30,32,58,.9), 0.00px -1.80px 0 rgba(30,32,58,.9), 1.27px 1.27px 0 rgba(30,32,58,.9), -1.27px -1.27px 0 rgba(30,32,58,.9), 1.27px -1.27px 0 rgba(30,32,58,.9), -1.27px 1.27px 0 rgba(30,32,58,.9)","titleFill":"#f7a8b8","titleRing":"1.80px 0.00px 0 rgba(58,42,51,.9), -1.80px 0.00px 0 rgba(58,42,51,.9), 0.00px 1.80px 0 rgba(58,42,51,.9), 0.00px -1.80px 0 rgba(58,42,51,.9), 1.27px 1.27px 0 rgba(58,42,51,.9), -1.27px -1.27px 0 rgba(58,42,51,.9), 1.27px -1.27px 0 rgba(58,42,51,.9), -1.27px 1.27px 0 rgba(58,42,51,.9)","artistFill":"#e8b98a","artistRing":"1.30px 0.00px 0 rgba(70,48,30,.7), -1.30px 0.00px 0 rgba(70,48,30,.7), 0.00px 1.30px 0 rgba(70,48,30,.7), 0.00px -1.30px 0 rgba(70,48,30,.7), 0.92px 0.92px 0 rgba(70,48,30,.7), -0.92px -0.92px 0 rgba(70,48,30,.7), 0.92px -0.92px 0 rgba(70,48,30,.7), -0.92px 0.92px 0 rgba(70,48,30,.7)"}}
+
+let scheme = 'light'
+let decor = 'soft'
+let painted = []
+
+function paint() {
+  const body = document.body
+  for (const n of painted) body.style.removeProperty(n)
+  painted = []
+  const theme = THEMES[scheme]
+  document.documentElement.style.colorScheme = scheme
+  body.toggleAttribute('data-ds-dark-theme', scheme === 'dark')
+  for (const [k, v] of Object.entries(theme.tokens)) { body.style.setProperty(k, v); painted.push(k) }
+
+  // 界面全部用荆南麦圆体：曲名、歌手、时间、设置面板文案…
+  // 数字用 tabular-nums 保证等宽，不会随秒数跳动。
+  const ui = "'KN Maiyuan', 'Microsoft YaHei', sans-serif"
+  const num = "'KN Maiyuan', 'Microsoft YaHei', sans-serif"
+  const lyric = "'KN Maiyuan', 'Microsoft YaHei', sans-serif"
+  body.style.setProperty('--font-ui', ui); painted.push('--font-ui')
+  body.style.setProperty('--font-num', num); painted.push('--font-num')
+  body.style.setProperty('--font-lyric', lyric); painted.push('--font-lyric')
+  body.style.setProperty('--dsw-font-family', ui); painted.push('--dsw-font-family')
+
+  const f = FLOWER[scheme]
+  body.style.setProperty('--lyric-fill', f.fill); painted.push('--lyric-fill')
+  body.style.setProperty('--lyric-dim', f.dim); painted.push('--lyric-dim')
+  body.style.setProperty('--lyric-ring', RING[scheme].thick); painted.push('--lyric-ring')
+  body.style.setProperty('--lyric-ring-thin', RING[scheme].thin); painted.push('--lyric-ring-thin')
+
+  // 界面文字的花字配色：大钟 / 日期 / 歌名 / 歌手（各一个色系，描边串构建时算好）
+  const ink = INK_CSS[scheme]
+  body.style.setProperty('--ink-clock-fill', ink.clockFill); painted.push('--ink-clock-fill')
+  body.style.setProperty('--ink-clock-ring', ink.clockRing); painted.push('--ink-clock-ring')
+  body.style.setProperty('--ink-date-fill', ink.dateFill); painted.push('--ink-date-fill')
+  body.style.setProperty('--ink-date-ring', ink.dateRing); painted.push('--ink-date-ring')
+  body.style.setProperty('--ink-title-fill', ink.titleFill); painted.push('--ink-title-fill')
+  body.style.setProperty('--ink-title-ring', ink.titleRing); painted.push('--ink-title-ring')
+  body.style.setProperty('--ink-artist-fill', ink.artistFill); painted.push('--ink-artist-fill')
+  body.style.setProperty('--ink-artist-ring', ink.artistRing); painted.push('--ink-artist-ring')
+
+  for (const [k, v] of Object.entries(DECOR[decor][scheme])) { body.style.setProperty(k, v); painted.push(k) }
+
+  for (const b of document.querySelectorAll('#decorSeg [data-decor]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.decor === decor))
+  }
+  for (const b of document.querySelectorAll('#schemeSeg [data-scheme]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.scheme === scheme))
+  }
+}
+
+for (const b of document.querySelectorAll('#decorSeg [data-decor]')) {
+  b.addEventListener('click', () => { decor = b.dataset.decor; paint() })
+}
+for (const b of document.querySelectorAll('#schemeSeg [data-scheme]')) {
+  b.addEventListener('click', () => { scheme = b.dataset.scheme; paint() })
+}
+
+// 左侧画面：只用竖版（构图留白更舒服，也能看到神社台阶和鸟居）
+
+// 设置面板开关
+const panel = document.getElementById('settingsPanel')
+const gear = document.getElementById('settingsBtn')
+function togglePanel(open) {
+  const next = open ?? panel.hidden
+  panel.hidden = !next
+  gear.setAttribute('aria-expanded', String(next))
+}
+gear.addEventListener('click', (e) => { e.stopPropagation(); togglePanel() })
+panel.addEventListener('click', (e) => e.stopPropagation())
+addEventListener('click', () => togglePanel(false))
+
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') togglePanel(false)
+  if (e.key === 'd') { scheme = scheme === 'light' ? 'dark' : 'light'; paint() }
+  if (e.key === '1') { decor = 'plain'; paint() }
+  if (e.key === '2') { decor = 'soft'; paint() }
+  if (e.key === '3') { decor = 'rich'; paint() }
+  if (e.key === ' ') { e.preventDefault(); timer.toggle() }   // 空格开始/暂停
+})
+paint()
+
+/* ══════════ 正计时器 ══════════ */
+
+const { createTimer, formatDuration, formatDate, formatClockMark } = (() => {
+  /*
+   * 计时器核心 · stopwatch
+   * ----------------------
+   * 纯逻辑，不碰 DOM：状态机 + 时间推进 + 快照。
+   * 正计时（从 0 往上走），两种状态：专注 / 休息。
+   *
+   * 设计：
+   *   · 用"开始时刻"算已过时间，不用"每秒加一"——后台标签页被节流也不会走慢
+   *   · 状态：idle → running ⇄ paused
+   *   · 每次从 idle 开始都会记录一个"本次开始时刻"，用于显示 +17:05 这样的标记
+   *   · 切状态（专注↔休息）会重置计时，因为换了一件事
+   *
+   * 用法（浏览器）：
+   *   const t = createTimer({ onChange: render })
+   *   t.toggle()          // 开始/暂停
+   *   t.setMode('rest')   // 切状态（会重置）
+   *   t.tick()            // 每帧或每秒调一次
+   */
+  
+  /**
+   * 合法的状态。四种"形态"，切换时归零重新计时。
+   *   study 学习 / fun 娱乐 / out 外出 / sleep 睡觉
+   */
+  const VALID_MODES = new Set(['study', 'fun', 'out', 'sleep'])
+  
+  /**
+   * 造一个计时器。
+   * @param {{
+   *   mode?: 'study' | 'fun' | 'out' | 'sleep',
+   *   onChange?: (snapshot: object) => void,
+   *   now?: () => number,
+   *   setTimer?: (fn: () => void, ms: number) => unknown,
+   *   clearTimer?: (handle: unknown) => void,
+   * }} options
+   */
+  function createTimer(options = {}) {
+    const now = options.now ?? (() => Date.now())
+    const setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
+    const clearTimer = options.clearTimer ?? ((h) => clearTimeout(h))
+    const onChange = options.onChange ?? (() => {})
+  
+    let mode = VALID_MODES.has(options.mode) ? options.mode : 'study'   // study | fun | out | sleep
+    let status = 'idle'                                    // idle | running | paused
+    /** 本次运行的目标：已累计的毫秒数 + 本次开始时刻 */
+    let accumulated = 0        // 暂停前累计的毫秒
+    let startedAt = null       // 本次运行的开始时刻（毫秒）；暂停时清空
+    /** 最近一次"从 idle 开始"的时刻，用于显示 +HH:MM 标记 */
+    let sessionStart = null
+    /** 已完成的专注段数 */
+    let rounds = 0
+    let handle = null
+  
+    /** 已过毫秒。 */
+    function elapsedMs() {
+      if (status === 'running') return accumulated + (now() - startedAt)
+      return accumulated
+    }
+  
+    /** 给 UI 的快照。 */
+    function snapshot() {
+      const ms = elapsedMs()
+      return {
+        mode,
+        status,
+        /** 已过秒数（浮点） */
+        elapsed: ms / 1000,
+        /** 已过秒数（整） */
+        seconds: Math.floor(ms / 1000),
+        /** 本次开始的墙上时刻（毫秒）；从未开始过为 null */
+        sessionStart,
+        /** 从 sessionStart 到现在经过的秒数（用于 +17:05） */
+        sinceStart: sessionStart === null ? null : Math.floor((now() - sessionStart) / 1000),
+        rounds,
+      }
+    }
+  
+    const emit = () => onChange(snapshot())
+  
+    function clearPending() {
+      if (handle !== null) { clearTimer(handle); handle = null }
+    }
+  
+    function schedule() {
+      clearPending()
+      if (status !== 'running') return
+      // 每 250ms 唤醒一次，秒数切换够跟手
+      handle = setTimer(() => { if (status === 'running') tick() }, 250)
+    }
+  
+    /** 推进一次。 */
+    function tick() {
+      if (status !== 'running') return
+      schedule()
+      emit()
+    }
+  
+    /** 开始 / 暂停切换。 */
+    function toggle() {
+      if (status === 'running') {
+        accumulated = elapsedMs()
+        startedAt = null
+        status = 'paused'
+        clearPending()
+        emit()
+        return
+      }
+      // 从 idle 开始（或暂停后继续）
+      if (status === 'idle') {
+        accumulated = 0
+        sessionStart = now()
+      }
+      startedAt = now()
+      status = 'running'
+      emit()
+      schedule()
+    }
+  
+    /** 归零（保留 sessionStart，避免 +HH:MM 跳变；再次开始会重新记）。 */
+    function reset() {
+      clearPending()
+      accumulated = 0
+      startedAt = null
+      status = 'idle'
+      emit()
+    }
+  
+    /** 切换状态（学习↔娱乐↔外出↔睡觉）：重置计时，并记一次新开始时刻。 */
+    function setMode(next) {
+      if (!VALID_MODES.has(next)) return
+      clearPending()
+      mode = next
+      accumulated = 0
+      startedAt = null
+      sessionStart = null
+      status = 'idle'
+      emit()
+    }
+  
+    /** 清零已完成段数。 */
+    function clearRounds() {
+      rounds = 0
+      emit()
+    }
+  
+    /** 完成一段（外部在需要时调用，例如手动打卡）。 */
+    function addRound() {
+      rounds += 1
+      emit()
+    }
+  
+    function dispose() {
+      clearPending()
+    }
+  
+    return {
+      toggle, reset, setMode, clearRounds, addRound, tick, dispose, snapshot,
+      get mode() { return mode },
+      get status() { return status },
+      get rounds() { return rounds },
+    }
+  }
+  
+  /**
+   * 秒 → h:mm:ss（恒带小时位，例：0:47:05）。
+   * 恒带小时是为了数字位数稳定——计时器每秒都在跳，位数变化会让整行左右晃。
+   */
+  function formatDuration(sec) {
+    const s = Math.max(0, Math.floor(sec))
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const ss = s % 60
+    return `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+  }
+  
+  /**
+   * 时间戳 → "2026/9/10"
+   * @param {number} ms
+   */
+  function formatDate(ms) {
+    const d = new Date(ms)
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+  }
+  
+  /**
+   * 时间戳 → "+17:05"（当天零点起算的 HH:MM）。
+   * @param {number} ms
+   */
+  function formatClockMark(ms) {
+    const d = new Date(ms)
+    return `+${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+  
+  return { createTimer, formatDuration, formatDate, formatClockMark }
+})()
+
+const elTime = document.getElementById('tTime')
+const elMark = document.getElementById('tMark')
+const elDate = document.getElementById('tDate')
+const elState = document.getElementById('tState')
+const elStage = document.querySelector('.stage')
+
+/** 四种状态：显示名与配色。 */
+const MODES = {
+  study: { label: '学习中', token: '--dsw-alias-button-primary-fill' },
+  fun: { label: '娱乐中', token: '--dsw-alias-state-success-primary' },
+  out: { label: '外出中', token: '--dsw-alias-state-warn-primary' },
+  sleep: { label: '睡觉中', token: '--dsw-alias-state-error-primary' },
+}
+
+const timer = createTimer({ mode: 'study', onChange: renderTimer })
+
+/** 渲染一次。 */
+function renderTimer(s) {
+  // 大钟：系统时间（h:mm:ss）
+  elTime.textContent = formatDuration(nowSeconds())
+  // 已计时长，带 + 号
+  elMark.textContent = '+' + formatDuration(s.seconds)
+  elDate.textContent = formatDate(Date.now())
+
+  const m = MODES[s.mode] ?? MODES.study
+  // 四种状态任何时候都占一种，所以只有"X中"和"X已暂停"两种说法
+  elState.textContent = s.status === 'paused' ? m.label.replace('中', '已暂停') : m.label
+
+  const color = s.status === 'paused'
+    ? 'var(--dsw-alias-state-warn-primary)'
+    : 'var(' + m.token + ')'
+  elState.style.color = color
+  elMark.style.color = color
+
+  elStage.classList.toggle('paused', s.status === 'paused')
+
+  for (const b of document.querySelectorAll('#modeSeg [data-mode]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.mode === s.mode))
+  }
+}
+
+/** 当前时刻换算成"当天零点起的秒数"，交给 formatDuration 渲染成 h:mm:ss。 */
+function nowSeconds() {
+  const d = new Date()
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
+}
+
+// 切换状态：归零重计。点当前状态 = 重新开始这一段。
+for (const b of document.querySelectorAll('#modeSeg [data-mode]')) {
+  b.addEventListener('click', () => {
+    if (b.dataset.mode === timer.mode && timer.status === 'running') {
+      timer.reset()          // 同一状态再点一次 = 重新计时
+    } else {
+      timer.setMode(b.dataset.mode)
+    }
+    timer.toggle()           // 立刻进入计时，不需要手动点开始
+    renderTimer(timer.snapshot())
+  })
+}
+
+renderTimer(timer.snapshot())
+
+/* 打开就在计时：默认学习状态，页面加载即开始 */
+if (timer.status === 'idle') timer.toggle()
+
+/* ══════════ 实时数据（连歌词服务） ══════════ */
+
+const { createLive, fmtTime } = (() => {
+  /*
+   * 实时数据层 · live
+   * ----------------
+   * 抽出来给两个页面共用（歌词浮层、播放器界面）：
+   *   · 拉状态快照 + 订阅 SSE
+   *   · 用「快照时刻 + 推算位置」在两次推送之间补间，进度条和歌词才不会一跳一跳
+   *   · 算当前行 / 上一句 / 下一句
+   *   · 封面图 URL（SMTC 缩略图对 QQ 音乐是空流，只能走搜索接口给的专辑图）
+   *
+   * 用法（浏览器，作为普通脚本内联）：
+   *   const live = createLive({ onChange: render })
+   *   live.start()
+   */
+  
+  /**
+   * @param {{
+   *   base?: string,                 // 服务端地址，默认同源；file:// 打开时需要显式指定
+   *   onChange?: (state: object) => void,
+   * }} options
+   */
+  function createLive(options = {}) {
+    const base = (options.base ?? '').replace(/\/$/, '')
+    const onChange = options.onChange ?? (() => {})
+  
+    /** 最近一次快照。 */
+    let snap = null
+    /** 收到快照的本地时刻（毫秒）。 */
+    let snapAt = 0
+    /** 打开页面时的本地时刻与快照位置的基准，用于补间。 */
+    let basePosition = 0
+  
+    let es = null
+    let pollTimer = null
+  
+    /** 推算当前播放位置（秒）。 */
+    function position() {
+      if (snap === null) return 0
+      let pos = basePosition
+      if (snap.playing) pos += (Date.now() - snapAt) / 1000
+      const dur = snap.track?.duration ?? 0
+      if (dur > 0) pos = Math.min(pos, dur)
+      return Math.max(0, pos)
+    }
+  
+    /** 当前行下标（-1 表示还没到第一句）。 */
+    function indexAt(pos, lines) {
+      let idx = -1
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].time <= pos + 0.15) idx = i
+        else break
+      }
+      return idx
+    }
+  
+    /** 给 UI 的完整视图状态。 */
+    function view() {
+      if (snap === null) {
+        return {
+          ready: false, track: null, kind: 'none',
+          position: 0, duration: 0, playing: false, index: -1,
+          prev: '', now: '正在连接…', next: '',
+          coverUrl: null, placeholder: 'connecting',
+        }
+      }
+  
+      const t = snap.track
+      if (t === null) {
+        return {
+          ready: true, track: null, kind: 'none',
+          position: 0, duration: 0, playing: false, index: -1,
+          prev: '', now: '打开 QQ 音乐播放任意歌曲', next: '',
+          coverUrl: null, placeholder: 'idle',
+        }
+      }
+  
+      const pos = position()
+      const duration = t.duration ?? 0
+      const lines = snap.lines ?? []
+      const idx = indexAt(pos, lines)
+  
+      // 纯文本歌词：没有时间轴，退化成"不跟唱"
+      if (snap.kind === 'plain') {
+        const texts = snap.textLines ?? []
+        return {
+          ready: true, track: t, kind: 'plain',
+          position: pos, duration, playing: snap.playing,
+          index: -1, prev: '', now: '这首歌没有同步歌词',
+          next: texts.slice(0, 2).join(' / '),
+          coverUrl: snap.coverUrl ?? null,
+          placeholder: null,
+        }
+      }
+  
+      // 前奏：正文没开始，不滚字幕
+      if ((snap.creditUntil ?? 0) > 0 && pos < snap.creditUntil) {
+        return {
+          ready: true, track: t, kind: snap.kind,
+          position: pos, duration, playing: snap.playing,
+          index: -1, prev: '', now: '前奏中 · 歌词马上开始', next: '',
+          coverUrl: snap.coverUrl ?? null,
+          placeholder: 'intro',
+        }
+      }
+  
+      if (lines.length === 0) {
+        return {
+          ready: true, track: t, kind: 'none',
+          position: pos, duration, playing: snap.playing,
+          index: -1, prev: '', now: '这首歌暂时没有同步歌词', next: '',
+          coverUrl: snap.coverUrl ?? null,
+          placeholder: 'none',
+        }
+      }
+  
+      return {
+        ready: true, track: t, kind: snap.kind,
+        position: pos, duration, playing: snap.playing,
+        index: idx,
+        prev: idx > 0 ? lines[idx - 1].text : '',
+        now: idx >= 0 ? lines[idx].text : '',
+        next: idx + 1 < lines.length ? lines[idx + 1].text : '',
+        coverUrl: snap.coverUrl ?? null,
+        placeholder: idx >= 0 ? null : 'intro',
+      }
+    }
+  
+    /** 收下一次快照。 */
+    function absorb(next) {
+      const prevKey = snap?.track === null ? '∅' : `${snap?.track?.title}\u0000${snap?.track?.artist}`
+      const nextKey = next.track === null ? '∅' : `${next.track.title}\u0000${next.track.artist}`
+      const changed = prevKey !== nextKey
+  
+      snap = next
+      snapAt = Date.now()
+      // 换了歌：位置从 0 重来；否则跟着服务端给的位置对齐
+      basePosition = changed ? (next.position ?? 0) : (next.position ?? 0)
+  
+      onChange(view())
+    }
+  
+    async function fetchState() {
+      try {
+        const res = await fetch(`${base}/api/state`, { cache: 'no-store' })
+        if (!res.ok) return
+        absorb(await res.json())
+      } catch { /* 服务没起或者网络抖动，等下一次 */ }
+    }
+  
+    function openStream() {
+      try {
+        es = new EventSource(`${base}/api/events`)
+        es.onmessage = (e) => {
+          try { absorb(JSON.parse(e.data)) } catch { /* 忽略坏帧 */ }
+        }
+        es.onerror = () => {
+          // EventSource 自己会重连；这里只保证首帧拿得到
+          fetchState()
+        }
+      } catch {
+        es = null
+      }
+    }
+  
+    /** 开始接收数据。 */
+    function start() {
+      fetchState()
+      openStream()
+      // 每秒兜底拉一次：SSE 万一断了也能自愈
+      pollTimer = setInterval(fetchState, 5000)
+    }
+  
+    function stop() {
+      if (es !== null) { es.close(); es = null }
+      if (pollTimer !== null) { clearInterval(pollTimer); pollTimer = null }
+    }
+  
+    /** 每帧调用：补间推进，让进度条和歌词跟得上。 */
+    function tick() {
+      onChange(view())
+    }
+  
+    return { start, stop, tick, position, view, get snapshot() { return snap } }
+  }
+  
+  /** 秒 → m:ss。 */
+  function fmtTime(sec) {
+    const s = Math.max(0, Math.floor(sec))
+    const m = Math.floor(s / 60)
+    const ss = s % 60
+    return `${m}:${String(ss).padStart(2, '0')}`
+  }
+  
+  return { createLive, fmtTime }
+})()
+
+const elCoverImg = document.getElementById('coverImg')
+const elCoverPh = document.getElementById('coverPh')
+const elTrackTitle = document.getElementById('trackTitle')
+const elTrackArtist = document.getElementById('trackArtist')
+const elLyPrev = document.getElementById('lyPrev')
+const elLyNow = document.getElementById('lyNow')
+const elLyNext = document.getElementById('lyNext')
+const elBarFill = document.getElementById('barFill')
+const elBarKnob = document.getElementById('barKnob')
+const elPosText = document.getElementById('posText')
+const elDurText = document.getElementById('durText')
+/** 右栏容器：字号变量和可用宽度都从它身上取。 */
+const rightColEl = document.querySelector('.right')
+
+/**
+ * 自动缩字号：内容超宽时逐步降字号，直到放得下（或到下限）。
+ *
+ * 为什么不用 CSS：没有"按内容实测宽度自适应字号"的原生属性
+ * （text-wrap / container queries 都做不到）。
+ *
+ * 用二分而不是逐像素降：字号区间 70→38 逐像素要试 30 多次，
+ * 二分只要 6 次；每次都要读 scrollWidth（强制重排），差别很明显。
+ *
+ * @param {HTMLElement} el 目标元素（需 nowrap + overflow hidden）
+ * @param {number} maxPx 原字号
+ * @param {number} minPx 最小字号（再小就交给省略号）
+ * @returns {boolean} 是否缩过
+ */
+function shrinkToFit(el, maxPx, minPx) {
+  if (el === null) return false
+  // 量父容器可用宽度，而不是元素自身——自身宽度会被内容撑开，量不出溢出
+  const avail = el.parentElement?.clientWidth ?? 0
+  if (avail <= 0) return false
+
+  const fits = (px) => {
+    el.style.fontSize = px + 'px'
+    return el.scrollWidth <= avail
+  }
+
+  if (fits(maxPx)) return false
+  if (!fits(minPx)) { el.style.fontSize = minPx + 'px'; return true }
+
+  // 二分找最大可行字号，取整到 0.5px
+  let lo = minPx
+  let hi = maxPx
+  for (let i = 0; i < 6 && hi - lo > 0.5; i++) {
+    const mid = (lo + hi) / 2
+    if (fits(mid)) lo = mid
+    else hi = mid
+  }
+  el.style.fontSize = Math.floor(lo * 2) / 2 + 'px'
+  return true
+}
+
+/** 读右栏上某个字号变量。 */
+function fsVar(name, fallback) {
+  const v = parseFloat(getComputedStyle(rightColEl).getPropertyValue(name))
+  return Number.isFinite(v) && v > 0 ? v : fallback
+}
+
+/** 歌名 / 歌手 / 歌词三行自适应。 */
+function fitTexts() {
+  const titleBase = fsVar('--fs-title', 70)
+  const artistBase = fsVar('--fs-artist', 40)
+  const lyNowBase = fsVar('--fs-lyNow', 30)
+  const lySideBase = fsVar('--fs-lySide', 17)
+
+  // 歌名可以缩得多一点（宁可小也要显示全，比截断好看）
+  shrinkToFit(elTrackTitle, titleBase, titleBase * 0.5)
+  shrinkToFit(elTrackArtist, artistBase, artistBase * 0.55)
+  // 歌词当前行尽量少缩，副行可以多缩
+  shrinkToFit(elLyNow, lyNowBase, lyNowBase * 0.62)
+  shrinkToFit(elLyPrev, lySideBase, lySideBase * 0.6)
+  shrinkToFit(elLyNext, lySideBase, lySideBase * 0.6)
+}
+
+/** 上次显示的歌词行，用来判断要不要重播入场动画。 */
+let shownLyric = ''
+/** 上次设的封面地址，避免每帧重设 img.src。 */
+let shownCover = ''
+
+function renderLive(v) {
+  if (!v.ready) return
+
+  // 歌名 / 歌手
+  if (v.track === null) {
+    elTrackTitle.textContent = '等待播放…'
+    elTrackArtist.textContent = '在 QQ 音乐里开始播放'
+  } else {
+    elTrackTitle.textContent = v.track.title || '未知曲目'
+    elTrackArtist.textContent = v.track.artist || ''
+  }
+
+  // 封面（QQ 音乐专辑图；拿不到就显示占位字）
+  const cover = v.coverUrl ?? ''
+  if (cover !== shownCover) {
+    shownCover = cover
+    if (cover === '') {
+      elCoverImg.hidden = true
+      elCoverPh.hidden = false
+    } else {
+      elCoverImg.src = cover
+      elCoverImg.hidden = false
+      elCoverPh.hidden = true
+    }
+  }
+
+  // 歌词三行
+  if (v.now !== shownLyric) {
+    const first = shownLyric === ''
+    shownLyric = v.now
+    elLyNow.textContent = v.now
+    if (!first && v.placeholder === null) {
+      elLyNow.classList.remove('enter')
+      void elLyNow.offsetWidth
+      elLyNow.classList.add('enter')
+    }
+  }
+  elLyPrev.textContent = v.prev
+  elLyNext.textContent = v.next
+
+  // 进度
+  const pct = v.duration > 0 ? Math.min(100, v.position / v.duration * 100) : 0
+  elBarFill.style.width = pct + '%'
+  elBarKnob.style.left = pct + '%'
+  elPosText.textContent = fmtTime(v.position)
+  elDurText.textContent = fmtTime(v.duration)
+
+  // 文字排完之后再缩字号（此刻内容已定，量的宽度才准）
+  fitTexts()
+}
+
+// 服务端地址：同源优先；用 file:// 打开时退回本机默认端口
+const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:7788' : ''
+const live = createLive({ base: API_BASE, onChange: renderLive })
+live.start()
+
+// 每帧补间推进（进度条平滑、歌词到点就换）
+function liveLoop() {
+  live.tick()
+  requestAnimationFrame(liveLoop)
+}
+requestAnimationFrame(liveLoop)
+
+/* 尺寸自适应：把右栏实际宽度写进 --w，CSS 里所有字号/封面尺寸都由它推导。
+   这样窗口大小一变，整块版面等比缩放，始终"排得满"。
+   窗口变化后要重跑 fitTexts——字号变了，能放下多少字也跟着变。 */
+function fitScale() {
+  const w = rightColEl.clientWidth
+  if (w > 0) rightColEl.style.setProperty('--w', w + 'px')
+  fitTexts()
+}
+fitScale()
+new ResizeObserver(fitScale).observe(rightColEl)
+
+// 每秒刷新：系统时间要一直走（不管计时器有没有开）
+setInterval(() => {
+  if (timer.status === 'running') timer.tick()
+  else renderTimer(timer.snapshot())
+}, 1000)
+</script>
+</body>
+</html>

@@ -31,6 +31,10 @@ overlay/shots/
 overlay/tools/_dump/
 
 # ── 备份 / 归档 ──
+# ── 迁移存档（旧的 lyric-overlay + 调研文档）──
+# 只是留着备查，不入库（含第三方调研文本）
+_migrated/
+
 _archive/
 *.bak
 *.orig

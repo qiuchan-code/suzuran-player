@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>进度条皮肤 · 样张</title>
+<style>
+@font-face { font-family: 'KN Maiyuan'; src: url('./fonts/raw/KNMaiyuan-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+</style>
+<style>
+:root {
+  --dsw-elevation-stroke-color: rgba(0,0,0,.06);
+  --dsw-elevation-panel: 0 0 0 .5px var(--dsw-elevation-stroke-color), 0 3px 8px 0 rgba(0,0,0,.03), 0 0 16px 0 rgba(0,0,0,.02);
+  --dsw-elevation-prominent: 0 0 0 .5px var(--dsw-elevation-stroke-color), 0 3px 8px 0 rgba(0,0,0,.04), 0 0 20px 0 rgba(0,0,0,.05);
+}
+</style>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 26px 30px 60px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: 'KN Maiyuan', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+h1 { font-size: 16px; font-weight: 400; margin: 0 0 4px; }
+.hint { font-size: 12px; color: var(--dsw-alias-label-caption); margin: 0 0 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 18px; }
+.card {
+  border: .5px solid var(--dsw-alias-border-l2);
+  border-radius: 18px; padding: 16px 20px 20px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 60%, #fff 40%);
+}
+body[data-ds-dark-theme] .card { background: color-mix(in srgb, var(--dsw-alias-bg-base) 82%, #fff 18%); }
+.card h2 { font-size: 13.5px; font-weight: 400; margin: 0 0 2px; }
+.note { font-size: 11.5px; color: var(--dsw-alias-label-caption); margin: 0 0 22px; line-height: 1.6; }
+.stage { padding: 6px 2px 2px; }
+.timeRow {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 10.5px; font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-caption);
+}
+
+/* ── 通用 ── */
+.pb { position: relative; }
+.pb i {
+  position: absolute; inset: 0 auto 0 0; border-radius: 999px;
+  background: var(--dsw-alias-button-primary-fill);
+}
+.knob {
+  position: absolute; top: 50%; left: 42%; transform: translate(-50%, -50%);
+  border-radius: 50%; corner-shape: round;
+  background: var(--dsw-alias-button-floating-fill);
+  border: 2px solid var(--dsw-alias-button-primary-fill);
+  box-shadow: var(--dsw-elevation-panel);
+}
+.knob-heart {
+  border: 0; background: transparent; box-shadow: none;
+  color: var(--dsw-alias-button-primary-fill);
+  font-size: 16px; line-height: 1;
+}
+
+/* 1 细线 */
+.pb-thin { height: 5px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover-solid); }
+.pb-thin .knob { width: 10px; height: 10px; }
+
+/* 2 粗胶囊 */
+.pb-thick { height: 9px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover-solid); }
+.pb-thick .knob { width: 15px; height: 15px; border-width: 2.5px; }
+
+/* 4 波形 */
+.pb-wave {
+  height: 26px; display: flex; align-items: center; gap: 2px;
+}
+.pb-wave span {
+  flex: 1; min-height: 3px; border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 16%, transparent);
+}
+.pb-wave span.on { background: var(--dsw-alias-button-primary-fill); }
+
+/* 5 圆点 */
+.pb-dots { height: 14px; display: flex; align-items: center; gap: 3px; }
+.pb-dots span {
+  width: 5px; height: 5px; border-radius: 50%; corner-shape: round; flex: none;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 18%, transparent);
+}
+.pb-dots span.on { background: var(--dsw-alias-button-primary-fill); }
+
+/* 6 发光 */
+.pb-glow { height: 6px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover-solid); }
+.pb-glow i { box-shadow: 0 0 8px color-mix(in srgb, var(--dsw-alias-button-primary-fill) 75%, transparent); }
+.pb-glow .knob { width: 11px; height: 11px; box-shadow: 0 0 10px color-mix(in srgb, var(--dsw-alias-button-primary-fill) 60%, transparent); }
+
+/* 7 渐变 */
+.pb-gradient { height: 6px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover-solid); }
+.pb-gradient i {
+  background: linear-gradient(90deg,
+    var(--dsw-alias-button-primary-fill),
+    color-mix(in srgb, var(--dsw-alias-state-success-primary) 85%, #fff));
+}
+.pb-gradient .knob { width: 11px; height: 11px; border-color: var(--dsw-alias-state-success-primary); }
+
+/* 8 分段 */
+.pb-segments { height: 10px; display: flex; gap: 3px; }
+.pb-segments span {
+  flex: 1; border-radius: 3px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+}
+.pb-segments span.on { background: var(--dsw-alias-button-primary-fill); }
+
+/* 控制条 */
+.switch {
+  position: fixed; top: 16px; right: 16px; z-index: 9;
+  display: flex; gap: 6px; padding: 5px;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-floating-fill);
+  box-shadow: var(--dsw-elevation-prominent);
+  border: .5px solid var(--dsw-alias-border-l2);
+}
+.switch button {
+  font: inherit; font-size: 12px; height: 26px; padding: 0 12px; cursor: pointer;
+  border: 0; border-radius: 999px; background: transparent; color: var(--dsw-alias-label-secondary);
+}
+.switch button[aria-pressed="true"] { background: var(--dsw-alias-button-primary-fill); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="switch">
+  <button type="button" id="lightBtn" aria-pressed="true">亮色</button>
+  <button type="button" id="darkBtn">暗色</button>
+</div>
+
+<h1>进度条皮肤 · 8 种</h1>
+<p class="hint">同一首曲子、同一进度（42%）。切右上角看暗色下的表现。</p>
+<div class="grid">
+
+<section class="card">
+  <h2>细线胶囊（当前）</h2>
+  <p class="note">5px 细条 + 圆点拖柄。最克制，不抢戏。</p>
+  <div class="stage"><div class="pb pb-thin"><i style="width:42%"></i><span class="knob"></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>粗胶囊 + 大拖柄</h2>
+  <p class="note">8px 粗条 + 14px 拖柄。更好抓，视觉更重。</p>
+  <div class="stage"><div class="pb pb-thick"><i style="width:42%"></i><span class="knob"></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>心形拖柄</h2>
+  <p class="note">细条 + 心形拖柄（用 emoji 或 CSS 画）。可爱度最高。</p>
+  <div class="stage"><div class="pb pb-thin"><i style="width:42%"></i><span class="knob knob-heart">♥</span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>波形条</h2>
+  <p class="note">细竖条阵列，已播部分点亮（你参考图里的做法）。信息量最大。</p>
+  <div class="stage"><div class="pb pb-wave"><span class="on" style="height:32%"></span><span class="on" style="height:24%"></span><span class="on" style="height:34%"></span><span class="on" style="height:53%"></span><span class="on" style="height:43%"></span><span class="on" style="height:39%"></span><span class="on" style="height:55%"></span><span class="on" style="height:60%"></span><span class="on" style="height:22%"></span><span class="on" style="height:68%"></span><span class="on" style="height:31%"></span><span class="on" style="height:31%"></span><span class="on" style="height:75%"></span><span class="on" style="height:25%"></span><span class="on" style="height:44%"></span><span class="on" style="height:25%"></span><span class="on" style="height:28%"></span><span class="on" style="height:66%"></span><span class="on" style="height:83%"></span><span class="on" style="height:77%"></span><span class="on" style="height:74%"></span><span class="on" style="height:30%"></span><span class="on" style="height:68%"></span><span class="on" style="height:60%"></span><span class="on" style="height:41%"></span><span class="on" style="height:89%"></span><span class="on" style="height:32%"></span><span class="" style="height:84%"></span><span class="" style="height:38%"></span><span class="" style="height:30%"></span><span class="" style="height:79%"></span><span class="" style="height:81%"></span><span class="" style="height:90%"></span><span class="" style="height:87%"></span><span class="" style="height:88%"></span><span class="" style="height:81%"></span><span class="" style="height:30%"></span><span class="" style="height:52%"></span><span class="" style="height:38%"></span><span class="" style="height:73%"></span><span class="" style="height:53%"></span><span class="" style="height:47%"></span><span class="" style="height:79%"></span><span class="" style="height:47%"></span><span class="" style="height:83%"></span><span class="" style="height:61%"></span><span class="" style="height:37%"></span><span class="" style="height:53%"></span><span class="" style="height:58%"></span><span class="" style="height:47%"></span><span class="" style="height:40%"></span><span class="" style="height:69%"></span><span class="" style="height:54%"></span><span class="" style="height:39%"></span><span class="" style="height:56%"></span><span class="" style="height:48%"></span><span class="" style="height:37%"></span><span class="" style="height:44%"></span><span class="" style="height:27%"></span><span class="" style="height:20%"></span><span class="" style="height:39%"></span><span class="" style="height:35%"></span><span class="" style="height:31%"></span><span class="" style="height:23%"></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>圆点条</h2>
+  <p class="note">一排小圆点，已播的点填充。轻巧、有节奏感。</p>
+  <div class="stage"><div class="pb pb-dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>发光胶囊</h2>
+  <p class="note">已播部分带同色柔光，像灯条。暗色底上尤其好看。</p>
+  <div class="stage"><div class="pb pb-glow"><i style="width:42%"></i><span class="knob"></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>双色渐变胶囊</h2>
+  <p class="note">粉 → 薄荷绿渐变，已播部分有颜色流动感。</p>
+  <div class="stage"><div class="pb pb-gradient"><i style="width:42%"></i><span class="knob"></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+
+<section class="card">
+  <h2>分段胶囊</h2>
+  <p class="note">切成若干小段，已播的段点亮。复古进度条的感觉。</p>
+  <div class="stage"><div class="pb pb-segments"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span><span class=""></span></div></div>
+  <div class="timeRow"><span>01:09</span><span>02:44</span></div>
+</section>
+</div>
+
+<script>
+const THEMES = {"light":{"id":"sakura-mochi-light","colorScheme":"light","family":"妯辫姳楹昏柉","accent":"#ef7d9a","accentAlt":"#5fb98a","anchorHex":"#f7a8b8","tokens":{"--dsw-alias-bg-base":"#fff9fa","--dsw-alias-bg-layer-1":"#ffffff","--dsw-alias-bg-layer-2":"#ffffff","--dsw-alias-bg-layer-3":"#fff6f8","--dsw-alias-bg-overlay":"#ffeaee","--dsw-alias-bg-module-platform":"#fff5f7","--dsw-alias-bg-multi-select":"#ffeaee","--dsw-alias-bg-skeleton":"#4a243010","--dsw-alias-bg-mask-1":"#4a243033","--dsw-alias-bg-mask-2":"#4a24301a","--dsw-alias-bg-mask-3":"#4a243066","--dsw-alias-border-l1":"#4a24300f","--dsw-alias-border-l2":"#4a24301f","--dsw-alias-border-l3":"#4a243029","--dsw-alias-border-l4":"#4a24303d","--dsw-alias-border-inverted":"#ffffff1f","--dsw-alias-label-primary":"#3b2830","--dsw-alias-label-secondary":"#6f5460","--dsw-alias-label-tertiary":"#846773","--dsw-alias-label-caption":"#9b7f8b","--dsw-alias-label-dimmed":"#dcc6ce","--dsw-alias-label-primary-dimmed":"#4d333d","--dsw-alias-label-primary-foreground":"#ffffff","--dsw-alias-label-primary-inverted":"#ffffff","--dsw-alias-label-primary-bluish":"#3b2830","--dsw-alias-state-business-primary":"#5f8fd8","--dsw-alias-state-business-tertiary":"#eef3fd","--dsw-alias-state-success-primary":"#4a9e74","--dsw-alias-state-success-secondary":"#8bd0ab","--dsw-alias-state-success-tertiary":"#eaf7f0","--dsw-alias-state-warn-primary":"#b8802f","--dsw-alias-state-warn-secondary":"#e0a24e","--dsw-alias-state-warn-tertiary":"#fdf4e6","--dsw-alias-state-error-primary":"#d24b5b","--dsw-alias-state-error-secondary":"#e8656f","--dsw-alias-interactive-bg-hover":"#ef7d9a14","--dsw-alias-interactive-bg-hover-solid":"#fff0f3","--dsw-alias-interactive-bg-active":"#ef7d9a26","--dsw-alias-interactive-bg-hover-accent":"#ef7d9a26","--dsw-alias-interactive-bg-hover-danger":"#e8656f14","--dsw-alias-button-primary-fill":"#ef7d9a","--dsw-alias-button-primary-hover":"#e46b8a","--dsw-alias-button-primary-dimmed":"#ffd9e2","--dsw-alias-button-info-fill":"#5f8fd8","--dsw-alias-button-info-hover":"#507fc9","--dsw-alias-button-elevated-fill":"#ffffff","--dsw-alias-button-floating-fill":"#ffffff","--dsw-alias-button-floating-hover":"#fff6f8","--dsw-alias-button-contrast-fill":"#3b2830","--dsw-alias-button-ghost-active-fill":"#ffeaee","--dsw-alias-button-ghost-active-border":"#9b7f8b","--dsw-alias-button-ghost-active-hover":"#ffdfe5","--dsw-alias-markdown-code-block":"#fff3f5","--dsw-alias-markdown-code-block-banner":"#ffe9ed","--dsw-alias-markdown-inline-code":"#ffeef1","--dsw-alias-markdown-tag":"#ffeef1","--dsw-alias-markdown-citation":"#ffeef1","--dsw-alias-markdown-placeholder":"#fff6f8","--dsw-alias-markdown-code-segment-selected":"#ffffff","--dsw-alias-markdown-code-segment-unselected":"#fff6f8","--dsw-alias-scrollbar-hover-l1":"#cfa8b4","--dsw-alias-scrollbar-hover-l2":"#cfa8b4","--dsw-alias-tooltip-bg":"#3b2830","--dsw-alias-toast-bg":"#4d333d","--dsw-specific-bubble":"#ffeef1","--dsw-specific-bubble-highlight":"#ffffff","--dsw-specific-input-major":"#ffffff","--dsw-specific-login-input":"#ffffff","--dsw-specific-menu":"#ffffff","--dsw-specific-selector":"#fff5f7","--dsw-specific-sidebar-fill":"#fff0f3","--dsw-specific-sidebar-nav-item-hover":"#ef7d9a14","--dsw-specific-sidebar-nav-item-active":"#ffdfe6","--dsw-specific-sidebar-nav-item-active-accent":"#ef7d9a","--dsw-specific-tip":"#ffeef1","--dsw-alias-brand-primary":"#3b2830","--dsw-alias-brand-primary-invert":"#3b2830","--dsw-alias-brand-text":"#3b2830","--dsw-alias-scrollbar-bg-l1":"#e8cdd5","--dsw-alias-scrollbar-bg-l2":"#dfc0c9"}},"dark":{"id":"sakura-mochi-dark","colorScheme":"dark","family":"妯辫姳楹昏柉","accent":"#f7a8b8","accentAlt":"#8ed6ae","anchorHex":"#f7a8b8","tokens":{"--dsw-alias-bg-base":"#211920","--dsw-alias-bg-layer-1":"#2b2029","--dsw-alias-bg-layer-2":"#352731","--dsw-alias-bg-layer-3":"#3f2e39","--dsw-alias-bg-overlay":"#4a3644","--dsw-alias-bg-module-platform":"#352731","--dsw-alias-bg-multi-select":"#3f2e39","--dsw-alias-bg-skeleton":"#ffffff14","--dsw-alias-bg-mask-1":"#00000080","--dsw-alias-bg-mask-2":"#00000033","--dsw-alias-bg-mask-3":"#0000007a","--dsw-alias-border-l1":"#ffc8d81f","--dsw-alias-border-l2":"#ffc8d82e","--dsw-alias-border-l3":"#ffc8d842","--dsw-alias-border-l4":"#ffc8d85c","--dsw-alias-border-inverted":"#ffffff14","--dsw-alias-label-primary":"#ffeef3","--dsw-alias-label-secondary":"#d4b3c0","--dsw-alias-label-tertiary":"#bb9aa8","--dsw-alias-label-caption":"#a48795","--dsw-alias-label-dimmed":"#5b4250","--dsw-alias-label-primary-dimmed":"#f5d8e2","--dsw-alias-label-primary-foreground":"#211920","--dsw-alias-label-primary-inverted":"#2b2029","--dsw-alias-label-primary-bluish":"#ffeef3","--dsw-alias-state-business-primary":"#a8c4f0","--dsw-alias-state-business-tertiary":"#2a3446","--dsw-alias-state-success-primary":"#8ed6ae","--dsw-alias-state-success-secondary":"#b0e6c8","--dsw-alias-state-success-tertiary":"#1f3a2c","--dsw-alias-state-warn-primary":"#f0c884","--dsw-alias-state-warn-secondary":"#f7dba8","--dsw-alias-state-warn-tertiary":"#3d3118","--dsw-alias-state-error-primary":"#f78f9b","--dsw-alias-state-error-secondary":"#ffb3bc","--dsw-alias-interactive-bg-hover":"#f7a8b81f","--dsw-alias-interactive-bg-hover-solid":"#3f2e39","--dsw-alias-interactive-bg-active":"#f7a8b833","--dsw-alias-interactive-bg-hover-accent":"#f7a8b83d","--dsw-alias-interactive-bg-hover-danger":"#f78f9b26","--dsw-alias-button-primary-fill":"#f7a8b8","--dsw-alias-button-primary-hover":"#ffc0cd","--dsw-alias-button-primary-dimmed":"#5c3a47","--dsw-alias-button-info-fill":"#a8c4f0","--dsw-alias-button-info-hover":"#c0d5f7","--dsw-alias-button-elevated-fill":"#3f2e39","--dsw-alias-button-floating-fill":"#352731","--dsw-alias-button-floating-hover":"#3f2e39","--dsw-alias-button-contrast-fill":"#ffeef3","--dsw-alias-button-ghost-active-fill":"#3f2e39","--dsw-alias-button-ghost-active-border":"#8a6a78","--dsw-alias-button-ghost-active-hover":"#5c3a47","--dsw-alias-markdown-code-block":"#241b22","--dsw-alias-markdown-code-block-banner":"#352731","--dsw-alias-markdown-inline-code":"#3f2e39","--dsw-alias-markdown-tag":"#3f2e39","--dsw-alias-markdown-citation":"#3f2e39","--dsw-alias-markdown-placeholder":"#352731","--dsw-alias-markdown-code-segment-selected":"#3f2e39","--dsw-alias-markdown-code-segment-unselected":"#241b22","--dsw-alias-scrollbar-hover-l1":"#6d4f5e","--dsw-alias-scrollbar-hover-l2":"#6d4f5e","--dsw-alias-tooltip-bg":"#4a3644","--dsw-alias-toast-bg":"#5c3a47","--dsw-specific-bubble":"#3f2e39","--dsw-specific-bubble-highlight":"#352731","--dsw-specific-input-major":"#352731","--dsw-specific-login-input":"#352731","--dsw-specific-menu":"#3f2e39","--dsw-specific-selector":"#352731","--dsw-specific-sidebar-fill":"#1d151b","--dsw-specific-sidebar-nav-item-hover":"#f7a8b81f","--dsw-specific-sidebar-nav-item-active":"#3f2e39","--dsw-specific-sidebar-nav-item-active-accent":"#f7a8b8","--dsw-specific-tip":"#3f2e39","--dsw-alias-brand-primary":"#ffeef3","--dsw-alias-brand-primary-invert":"#ffeef3","--dsw-alias-brand-text":"#ffeef3","--dsw-alias-scrollbar-bg-l1":"#4a3644","--dsw-alias-scrollbar-bg-l2":"#5b4250"}}}
+function apply(name) {
+  const t = THEMES[name]
+  const b = document.body
+  for (const [k, v] of Object.entries(t.tokens)) b.style.setProperty(k, v)
+  b.toggleAttribute('data-ds-dark-theme', name === 'dark')
+  document.documentElement.style.colorScheme = name
+  document.getElementById('lightBtn').setAttribute('aria-pressed', String(name === 'light'))
+  document.getElementById('darkBtn').setAttribute('aria-pressed', String(name === 'dark'))
+}
+document.getElementById('lightBtn').addEventListener('click', () => apply('light'))
+document.getElementById('darkBtn').addEventListener('click', () => apply('dark'))
+apply('light')
+</script>
+</body>
+</html>

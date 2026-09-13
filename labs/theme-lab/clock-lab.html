@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大钟版式 · 样张</title>
+<style>
+@font-face { font-family: 'KN Maiyuan'; src: url('./fonts/raw/KNMaiyuan-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+</style>
+<style>
+:root {
+  --dsw-elevation-stroke-color: rgba(0,0,0,.06);
+  --dsw-elevation-panel: 0 0 0 .5px var(--dsw-elevation-stroke-color), 0 3px 8px 0 rgba(0,0,0,.03), 0 0 16px 0 rgba(0,0,0,.02);
+  --dsw-elevation-prominent: 0 0 0 .5px var(--dsw-elevation-stroke-color), 0 3px 8px 0 rgba(0,0,0,.04), 0 0 20px 0 rgba(0,0,0,.05);
+}
+</style>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 26px 30px 60px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: 'KN Maiyuan', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+h1 { font-size: 16px; font-weight: 400; margin: 0 0 4px; }
+.hint { font-size: 12px; color: var(--dsw-alias-label-caption); margin: 0 0 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 18px; }
+.card {
+  border: .5px solid var(--dsw-alias-border-l2);
+  border-radius: 18px; padding: 14px 20px 18px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 60%, #fff 40%);
+}
+body[data-ds-dark-theme] .card { background: color-mix(in srgb, var(--dsw-alias-bg-base) 82%, #fff 18%); }
+.card h2 { font-size: 13.5px; font-weight: 400; margin: 0 0 2px; }
+.note { font-size: 11.5px; color: var(--dsw-alias-label-caption); margin: 0 0 20px; line-height: 1.6; }
+.stage {
+  min-height: 260px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px;
+  background:
+    radial-gradient(60% 50% at 30% 20%, color-mix(in srgb, var(--dsw-alias-button-primary-fill) 10%, transparent) 0%, transparent 62%),
+    radial-gradient(50% 44% at 80% 90%, color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent) 0%, transparent 60%);
+}
+
+/* 通用巨钟 */
+.c1time {
+  font-size: 92px; line-height: 1; font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  color: var(--dsw-alias-label-primary);
+}
+.c1date {
+  font-size: 15px; color: var(--dsw-alias-label-caption);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .08em;
+}
+
+/* V1 */
+.v1 { flex-direction: column; gap: 10px; }
+
+/* V2 */
+.v2 { justify-content: center; gap: 46px; }
+.c2main { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.c2side { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.c2elapsed {
+  font-size: 30px; line-height: 1.1; font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-button-primary-fill);
+}
+.c2state { font-size: 13px; color: var(--dsw-alias-state-success-primary); letter-spacing: .08em; }
+
+/* V3 */
+.v3 { flex-direction: column; gap: 14px; }
+.c3time {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: 92px; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-primary);
+}
+.c3time i {
+  font-style: normal; font-size: 54px;
+  color: var(--dsw-alias-label-dimmed);
+  transform: translateY(-6px);
+  animation: blink 2s steps(1, end) infinite;
+}
+@keyframes blink { 50% { opacity: .28 } }
+.c3row {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 14px; color: var(--dsw-alias-label-caption);
+  font-variant-numeric: tabular-nums; letter-spacing: .06em;
+}
+.c3row .dot { opacity: .5 }
+.c3elapsed { color: var(--dsw-alias-button-primary-fill); }
+.c3state { color: var(--dsw-alias-state-success-primary); }
+
+/* V4 */
+.v4 { flex-direction: column; gap: 12px; }
+.c4top {
+  display: flex; align-items: baseline; gap: 16px;
+  font-size: 13px; letter-spacing: .1em;
+}
+.c4state { color: var(--dsw-alias-state-success-primary); }
+.c4now {
+  font-size: 22px; font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-caption); letter-spacing: .06em;
+}
+
+/* 控制条 */
+.switch {
+  position: fixed; top: 16px; right: 16px; z-index: 9;
+  display: flex; gap: 6px; padding: 5px;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-floating-fill);
+  box-shadow: var(--dsw-elevation-prominent);
+  border: .5px solid var(--dsw-alias-border-l2);
+}
+.switch button {
+  font: inherit; font-size: 12px; height: 26px; padding: 0 12px; cursor: pointer;
+  border: 0; border-radius: 999px; background: transparent; color: var(--dsw-alias-label-secondary);
+}
+.switch button[aria-pressed="true"] { background: var(--dsw-alias-button-primary-fill); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="switch">
+  <button type="button" id="lightBtn" aria-pressed="true">亮色</button>
+  <button type="button" id="darkBtn">暗色</button>
+</div>
+
+<h1>大钟版式 · 4 种</h1>
+<p class="hint">同一份数据、四种排布。切右上角看暗色下的表现。</p>
+<div class="grid">
+
+<section class="card">
+  <h2>V1 · 极简巨钟</h2>
+  <p class="note">时间独占，日期压在正下方。其他信息一律不要——最接近壁纸时钟的做法。</p>
+  
+      <div class="stage v1">
+        <div class="c1time">0:47:05</div>
+        <div class="c1date">2026/9/10</div>
+      </div>
+</section>
+
+<section class="card">
+  <h2>V2 · 巨钟 + 计时</h2>
+  <p class="note">主时间是系统时间，右下方挂已计时长。信息完整但仍有主次。</p>
+  
+      <div class="stage v2">
+        <div class="c2main">
+          <div class="c1time">0:47:05</div>
+          <div class="c1date">2026/9/10</div>
+        </div>
+        <div class="c2side">
+          <div class="c2elapsed">+0:17:05</div>
+          <div class="c2state">专注中</div>
+        </div>
+      </div>
+</section>
+
+<section class="card">
+  <h2>V3 · 分段巨钟</h2>
+  <p class="note">时/分/秒 分段，冒号做小做淡。数字感的壁纸钟常用这个做法。</p>
+  
+      <div class="stage v3">
+        <div class="c3time">
+          <span>0</span><i>:</i><span>47</span><i>:</i><span>05</span>
+        </div>
+        <div class="c3row">
+          <span>2026/9/10</span>
+          <span class="dot">·</span>
+          <span class="c3elapsed">+0:17:05</span>
+          <span class="dot">·</span>
+          <span class="c3state">专注中</span>
+        </div>
+      </div>
+</section>
+
+<section class="card">
+  <h2>V4 · 计时为主</h2>
+  <p class="note">把已计时长做成主数字（毕竟这是计时器），系统时间退到副行。</p>
+  
+      <div class="stage v4">
+        <div class="c4top"><span class="c4state">专注中</span><span class="c1date">2026/9/10</span></div>
+        <div class="c1time">+0:17:05</div>
+        <div class="c4now">0:47:05</div>
+      </div>
+</section>
+</div>
+
+<script>
+const THEMES = {"light":{"id":"sakura-mochi-light","colorScheme":"light","family":"妯辫姳楹昏柉","accent":"#ef7d9a","accentAlt":"#5fb98a","anchorHex":"#f7a8b8","tokens":{"--dsw-alias-bg-base":"#fff9fa","--dsw-alias-bg-layer-1":"#ffffff","--dsw-alias-bg-layer-2":"#ffffff","--dsw-alias-bg-layer-3":"#fff6f8","--dsw-alias-bg-overlay":"#ffeaee","--dsw-alias-bg-module-platform":"#fff5f7","--dsw-alias-bg-multi-select":"#ffeaee","--dsw-alias-bg-skeleton":"#4a243010","--dsw-alias-bg-mask-1":"#4a243033","--dsw-alias-bg-mask-2":"#4a24301a","--dsw-alias-bg-mask-3":"#4a243066","--dsw-alias-border-l1":"#4a24300f","--dsw-alias-border-l2":"#4a24301f","--dsw-alias-border-l3":"#4a243029","--dsw-alias-border-l4":"#4a24303d","--dsw-alias-border-inverted":"#ffffff1f","--dsw-alias-label-primary":"#3b2830","--dsw-alias-label-secondary":"#6f5460","--dsw-alias-label-tertiary":"#846773","--dsw-alias-label-caption":"#9b7f8b","--dsw-alias-label-dimmed":"#dcc6ce","--dsw-alias-label-primary-dimmed":"#4d333d","--dsw-alias-label-primary-foreground":"#ffffff","--dsw-alias-label-primary-inverted":"#ffffff","--dsw-alias-label-primary-bluish":"#3b2830","--dsw-alias-state-business-primary":"#5f8fd8","--dsw-alias-state-business-tertiary":"#eef3fd","--dsw-alias-state-success-primary":"#4a9e74","--dsw-alias-state-success-secondary":"#8bd0ab","--dsw-alias-state-success-tertiary":"#eaf7f0","--dsw-alias-state-warn-primary":"#b8802f","--dsw-alias-state-warn-secondary":"#e0a24e","--dsw-alias-state-warn-tertiary":"#fdf4e6","--dsw-alias-state-error-primary":"#d24b5b","--dsw-alias-state-error-secondary":"#e8656f","--dsw-alias-interactive-bg-hover":"#ef7d9a14","--dsw-alias-interactive-bg-hover-solid":"#fff0f3","--dsw-alias-interactive-bg-active":"#ef7d9a26","--dsw-alias-interactive-bg-hover-accent":"#ef7d9a26","--dsw-alias-interactive-bg-hover-danger":"#e8656f14","--dsw-alias-button-primary-fill":"#ef7d9a","--dsw-alias-button-primary-hover":"#e46b8a","--dsw-alias-button-primary-dimmed":"#ffd9e2","--dsw-alias-button-info-fill":"#5f8fd8","--dsw-alias-button-info-hover":"#507fc9","--dsw-alias-button-elevated-fill":"#ffffff","--dsw-alias-button-floating-fill":"#ffffff","--dsw-alias-button-floating-hover":"#fff6f8","--dsw-alias-button-contrast-fill":"#3b2830","--dsw-alias-button-ghost-active-fill":"#ffeaee","--dsw-alias-button-ghost-active-border":"#9b7f8b","--dsw-alias-button-ghost-active-hover":"#ffdfe5","--dsw-alias-markdown-code-block":"#fff3f5","--dsw-alias-markdown-code-block-banner":"#ffe9ed","--dsw-alias-markdown-inline-code":"#ffeef1","--dsw-alias-markdown-tag":"#ffeef1","--dsw-alias-markdown-citation":"#ffeef1","--dsw-alias-markdown-placeholder":"#fff6f8","--dsw-alias-markdown-code-segment-selected":"#ffffff","--dsw-alias-markdown-code-segment-unselected":"#fff6f8","--dsw-alias-scrollbar-hover-l1":"#cfa8b4","--dsw-alias-scrollbar-hover-l2":"#cfa8b4","--dsw-alias-tooltip-bg":"#3b2830","--dsw-alias-toast-bg":"#4d333d","--dsw-specific-bubble":"#ffeef1","--dsw-specific-bubble-highlight":"#ffffff","--dsw-specific-input-major":"#ffffff","--dsw-specific-login-input":"#ffffff","--dsw-specific-menu":"#ffffff","--dsw-specific-selector":"#fff5f7","--dsw-specific-sidebar-fill":"#fff0f3","--dsw-specific-sidebar-nav-item-hover":"#ef7d9a14","--dsw-specific-sidebar-nav-item-active":"#ffdfe6","--dsw-specific-sidebar-nav-item-active-accent":"#ef7d9a","--dsw-specific-tip":"#ffeef1","--dsw-alias-brand-primary":"#3b2830","--dsw-alias-brand-primary-invert":"#3b2830","--dsw-alias-brand-text":"#3b2830","--dsw-alias-scrollbar-bg-l1":"#e8cdd5","--dsw-alias-scrollbar-bg-l2":"#dfc0c9"}},"dark":{"id":"sakura-mochi-dark","colorScheme":"dark","family":"妯辫姳楹昏柉","accent":"#f7a8b8","accentAlt":"#8ed6ae","anchorHex":"#f7a8b8","tokens":{"--dsw-alias-bg-base":"#211920","--dsw-alias-bg-layer-1":"#2b2029","--dsw-alias-bg-layer-2":"#352731","--dsw-alias-bg-layer-3":"#3f2e39","--dsw-alias-bg-overlay":"#4a3644","--dsw-alias-bg-module-platform":"#352731","--dsw-alias-bg-multi-select":"#3f2e39","--dsw-alias-bg-skeleton":"#ffffff14","--dsw-alias-bg-mask-1":"#00000080","--dsw-alias-bg-mask-2":"#00000033","--dsw-alias-bg-mask-3":"#0000007a","--dsw-alias-border-l1":"#ffc8d81f","--dsw-alias-border-l2":"#ffc8d82e","--dsw-alias-border-l3":"#ffc8d842","--dsw-alias-border-l4":"#ffc8d85c","--dsw-alias-border-inverted":"#ffffff14","--dsw-alias-label-primary":"#ffeef3","--dsw-alias-label-secondary":"#d4b3c0","--dsw-alias-label-tertiary":"#bb9aa8","--dsw-alias-label-caption":"#a48795","--dsw-alias-label-dimmed":"#5b4250","--dsw-alias-label-primary-dimmed":"#f5d8e2","--dsw-alias-label-primary-foreground":"#211920","--dsw-alias-label-primary-inverted":"#2b2029","--dsw-alias-label-primary-bluish":"#ffeef3","--dsw-alias-state-business-primary":"#a8c4f0","--dsw-alias-state-business-tertiary":"#2a3446","--dsw-alias-state-success-primary":"#8ed6ae","--dsw-alias-state-success-secondary":"#b0e6c8","--dsw-alias-state-success-tertiary":"#1f3a2c","--dsw-alias-state-warn-primary":"#f0c884","--dsw-alias-state-warn-secondary":"#f7dba8","--dsw-alias-state-warn-tertiary":"#3d3118","--dsw-alias-state-error-primary":"#f78f9b","--dsw-alias-state-error-secondary":"#ffb3bc","--dsw-alias-interactive-bg-hover":"#f7a8b81f","--dsw-alias-interactive-bg-hover-solid":"#3f2e39","--dsw-alias-interactive-bg-active":"#f7a8b833","--dsw-alias-interactive-bg-hover-accent":"#f7a8b83d","--dsw-alias-interactive-bg-hover-danger":"#f78f9b26","--dsw-alias-button-primary-fill":"#f7a8b8","--dsw-alias-button-primary-hover":"#ffc0cd","--dsw-alias-button-primary-dimmed":"#5c3a47","--dsw-alias-button-info-fill":"#a8c4f0","--dsw-alias-button-info-hover":"#c0d5f7","--dsw-alias-button-elevated-fill":"#3f2e39","--dsw-alias-button-floating-fill":"#352731","--dsw-alias-button-floating-hover":"#3f2e39","--dsw-alias-button-contrast-fill":"#ffeef3","--dsw-alias-button-ghost-active-fill":"#3f2e39","--dsw-alias-button-ghost-active-border":"#8a6a78","--dsw-alias-button-ghost-active-hover":"#5c3a47","--dsw-alias-markdown-code-block":"#241b22","--dsw-alias-markdown-code-block-banner":"#352731","--dsw-alias-markdown-inline-code":"#3f2e39","--dsw-alias-markdown-tag":"#3f2e39","--dsw-alias-markdown-citation":"#3f2e39","--dsw-alias-markdown-placeholder":"#352731","--dsw-alias-markdown-code-segment-selected":"#3f2e39","--dsw-alias-markdown-code-segment-unselected":"#241b22","--dsw-alias-scrollbar-hover-l1":"#6d4f5e","--dsw-alias-scrollbar-hover-l2":"#6d4f5e","--dsw-alias-tooltip-bg":"#4a3644","--dsw-alias-toast-bg":"#5c3a47","--dsw-specific-bubble":"#3f2e39","--dsw-specific-bubble-highlight":"#352731","--dsw-specific-input-major":"#352731","--dsw-specific-login-input":"#352731","--dsw-specific-menu":"#3f2e39","--dsw-specific-selector":"#352731","--dsw-specific-sidebar-fill":"#1d151b","--dsw-specific-sidebar-nav-item-hover":"#f7a8b81f","--dsw-specific-sidebar-nav-item-active":"#3f2e39","--dsw-specific-sidebar-nav-item-active-accent":"#f7a8b8","--dsw-specific-tip":"#3f2e39","--dsw-alias-brand-primary":"#ffeef3","--dsw-alias-brand-primary-invert":"#ffeef3","--dsw-alias-brand-text":"#ffeef3","--dsw-alias-scrollbar-bg-l1":"#4a3644","--dsw-alias-scrollbar-bg-l2":"#5b4250"}}}
+function apply(name) {
+  const t = THEMES[name]
+  const b = document.body
+  for (const [k, v] of Object.entries(t.tokens)) b.style.setProperty(k, v)
+  b.toggleAttribute('data-ds-dark-theme', name === 'dark')
+  document.documentElement.style.colorScheme = name
+  document.getElementById('lightBtn').setAttribute('aria-pressed', String(name === 'light'))
+  document.getElementById('darkBtn').setAttribute('aria-pressed', String(name === 'dark'))
+}
+document.getElementById('lightBtn').addEventListener('click', () => apply('light'))
+document.getElementById('darkBtn').addEventListener('click', () => apply('dark'))
+apply('light')
+</script>
+</body>
+</html>
