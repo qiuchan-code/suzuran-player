@@ -1308,6 +1308,19 @@ function renderLive(v) {
     if (tk !== '') vizKick = 1
   }
 
+  /*
+   * 单曲循环：曲目标识没变，但服务端在曲末把时钟归零了（v.loops 递增）。
+   *
+   * 这里跟着打一次脉冲 —— 否则进度条会静悄悄跳回 0，看着像卡了一下。
+   * 有了这个，"重头开始"和"切歌"的视觉反馈就一致了。
+   */
+  if (typeof v.loops === 'number') {
+    if (v.loops !== vizLastLoops) {
+      vizLastLoops = v.loops
+      if (v.loops > 0) vizKick = 1
+    }
+  }
+
   // 播放状态：频谱的明暗和表情的抖动都跟着它
   document.querySelector('.card').classList.toggle('playing', v.playing === true)
 
@@ -1525,6 +1538,8 @@ let vizLevel = 0
 let vizKick = 0
 /** 上次看到的曲目标识，用来判断换歌。 */
 let vizLastTrack = ''
+/** 上次看到的循环轮次（单曲循环时服务端会在曲末归零，靠它触发脉冲）。 */
+let vizLastLoops = 0
 
 /** 按容器宽度铺满柱子。 */
 function buildViz() {

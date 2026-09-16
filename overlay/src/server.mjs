@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { createTrackReader, trackKey } from './track-reader.mjs'
 import { lyricsFor, breakerState, searchDiagnostics, throttleState, searchSongForTest } from './lyrics.mjs'
+import { effectiveEnd, isLoopOverrun, LOOP_GRACE_S, LOOP_GRACE_RATIO } from './loop-clock.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -108,6 +109,44 @@ function clockPosition() {
   return Math.max(0, clock.accumulated + live + clock.offset)
 }
 
+/**
+ * 这首歌大约多长（秒）。0 = 不知道。
+ *
+ * 优先用 SMTC 报的时长（QQ 音乐恒为 0），退到歌词接口的 interval，
+ * 再退到歌词末行时间。取最大值 —— 曲末判断宁可比实际长一点：
+ * 报短了会在歌还没放完时就把进度条拽回 0，那比"不归零"更难受。
+ *
+ * 逻辑在 loop-clock.mjs 里（纯函数，配了单测）。
+ */
+
+/**
+ * 曲末归零 —— 修「单曲循环时歌词和进度条再也不动」。
+ *
+ * 原来的问题：合成时钟**只在"歌名+歌手变了"时归零**（见轮询里的 changed）。
+ * 但循环播放同一首歌时，key 前后完全一样 → 永远不重置 →
+ * 推算位置一路涨到时长后被 snapshot 里的 Math.min 夹住 →
+ * 歌词索引永远停在最后一行，进度条也不走了。
+ *
+ * 这里用"位置越过歌曲长度"来识别一轮结束。
+ * 判定细节（取最大时长、留宽限、太短不判断）都在 loop-clock.mjs 里。
+ */
+function checkLoop() {
+  if (!clock.playing) return
+  const end = effectiveEnd(state.track, state.lyrics)
+  if (isLoopOverrun(clockPosition(), end)) {
+    // 一轮放完了。重置时钟，让进度条和歌词都从头发起。
+    clockReset()
+    clockResume()
+    loopCount++
+    if (args.verbose) {
+      console.log(`[循环] 《${state.track?.title ?? '?'}》放完一轮（约 ${Math.round(end)} 秒），时钟归零（第 ${loopCount} 轮）`)
+    }
+  }
+}
+
+/** 诊断用：本曲目循环归零过几次。 */
+let loopCount = 0
+
 /** 当前曲目（含歌词与推算出的播放位置）。 */
 let state = {
   track: null,
@@ -132,12 +171,19 @@ function snapshot() {
   const playing = clock.playing
   if (t === null) return { track: null, kind: 'none', lines: [], textLines: [], index: -1, position: 0, playing: false, offset: clock.offset, error: state.error }
 
-  let position = clockPosition()
-  if (t.duration > 0) position = Math.min(position, t.duration)
+  // 单曲循环时曲目标识不变，靠这里把时钟按轮归零（否则进度和歌词会卡住）
+  checkLoop()
 
   const lyrics = state.lyrics
   const kind = lyrics?.kind ?? 'none'
   const lines = lyrics?.lines ?? []
+
+  // 时长：SMTC 给就用；QQ 音乐不给（恒为 0），退回搜索接口的 interval 或歌词末行估算
+  const duration = effectiveEnd(t, lyrics)
+
+  let position = clockPosition()
+  if (duration > 0) position = Math.min(position, duration)
+
   let index = -1
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].time <= position + 0.15) index = i
@@ -145,11 +191,6 @@ function snapshot() {
   }
   const trans = lyrics?.trans ?? new Map()
   const transText = index >= 0 ? (trans.get(Math.round(lines[index].time * 10)) ?? '') : ''
-
-  // 时长：SMTC 给就用；QQ 音乐不给（恒为 0），退回搜索接口的 interval 或歌词末行估算
-  const duration = t.duration > 0
-    ? t.duration
-    : (lyrics?.duration ?? 0)
 
   return {
     track: { title: t.title, artist: t.artist, album: t.album, duration, app: t.app },
@@ -167,6 +208,8 @@ function snapshot() {
     index,
     position,
     playing,
+    /** 本曲目循环归零过几次（单曲循环时能看到它涨，便于确认曲末检测在工作） */
+    loops: loopCount,
     offset: clock.offset,
     error: state.error,
   }
@@ -208,6 +251,7 @@ function tick() {
       lastKey = key
       state = { track, lyrics: null, error: null }
       clockReset()
+      loopCount = 0                    // 新曲目，轮次重新数
       if (nowPlaying) clockResume()
       broadcast()                       // ← 曲目信息立刻推，不等歌词
 
@@ -341,6 +385,31 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
       res.end(JSON.stringify({ error: String(e?.message ?? e) }))
     }
+    return
+  }
+
+  // 排查用：合成时钟的状态。曲末归零是否正常工作看这里最直接 ——
+  // 不用等一整首歌放完，看 position 有没有越过 end+grace 再回落即可。
+  if (url.pathname === '/api/clock') {
+    const t = state.track
+    const end = effectiveEnd(t, state.lyrics)
+    const pos = clockPosition()
+    const grace = Math.max(LOOP_GRACE_S, end * LOOP_GRACE_RATIO)
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...CORS })
+    res.end(JSON.stringify({
+      title: t?.title ?? null,
+      playing: clock.playing,
+      position: Math.round(pos * 10) / 10,
+      end: Math.round(end * 10) / 10,
+      grace: Math.round(grace * 10) / 10,
+      /** 超过这个值就会归零 */
+      resetAt: Math.round((end + grace) * 10) / 10,
+      /** 还差多少秒归零；负数说明已经越过（下一帧就会归零） */
+      secondsToReset: Math.round((end + grace - pos) * 10) / 10,
+      /** 本曲目已经循环归零过几次 */
+      loops: loopCount,
+      offset: clock.offset,
+    }, null, 1))
     return
   }
 
