@@ -58,6 +58,12 @@ function barHtml() {
   /* 当前状态文字 */
   .cur{font-size:13px;font-weight:600;flex:none;min-width:60px;text-align:right;
     color:var(--c,#ef7d9a);transition:color .25s}
+  /* 关闭（退出播放器） */
+  .close{width:26px;height:26px;flex:none;border-radius:50%;border:0;cursor:pointer;
+    background:transparent;color:#b096a0;font-size:15px;line-height:26px;text-align:center;
+    padding:0;transition:background .18s,color .18s,transform .16s cubic-bezier(.34,1.4,.64,1)}
+  .close:hover{background:#f4d7de;color:#a83b58}
+  .close:active{transform:scale(.9)}
   /* 收起的态 */
   body.collapsed .field,body.collapsed .cur{display:none}
   body.collapsed .wrap{padding:0 14px;gap:0}
@@ -69,6 +75,7 @@ function barHtml() {
       <div class="track" id="track"><div class="thumb" id="thumb"></div></div>
     </div>
     <span class="cur" id="cur">学习ing</span>
+    <button class="close" id="close" title="退出播放器">✕</button>
   </div>
   <script>
     const TIERS = ['luna','terra','sol','astra']
@@ -145,6 +152,9 @@ function barHtml() {
 
     document.getElementById('theme').addEventListener('click', () => send('ACTION:theme'))
 
+    // 关闭按钮：退出整个播放器（主进程收到 ACTION:close 后走正常退出流程）
+    document.getElementById('close').addEventListener('click', () => send('ACTION:close'))
+
     // 主进程通过这些方法更新画面
     window.__setTier = (i) => paint(i)
     window.__setTheme = (dark) => {
@@ -194,10 +204,11 @@ function barHtml() {
  * @param {object} o
  * @param {(i:number)=>void} o.onTier  档位变化（0=luna … 3=astra）
  * @param {()=>void} o.onTheme         点了明暗按钮
+ * @param {()=>void} o.onClose         点了关闭按钮（调用方去退出播放器）
  * @param {object} o.layout            { x, y, w, h } 由调用方量好传进来
  * @returns {Promise<{win: BrowserWindow, setState: Function, reposition: Function, setCollapsed: Function, destroy: Function}>}
  */
-export async function createControlBar({ onTier, onTheme, layout }) {
+export async function createControlBar({ onTier, onTheme, onClose, layout }) {
   const win = new BrowserWindow({
     x: layout.x, y: layout.y, width: layout.w, height: BAR_H,
     frame: false,
@@ -263,6 +274,8 @@ export async function createControlBar({ onTier, onTheme, layout }) {
       if (Number.isFinite(i)) onTier?.(i)
     } else if (msg === 'ACTION:theme') {
       onTheme?.()
+    } else if (msg === 'ACTION:close') {
+      onClose?.()
     } else if (msg === 'HIT:1') {
       setClickable(true)      // 光标在控件上 → 接收点击
     } else if (msg === 'HIT:0') {

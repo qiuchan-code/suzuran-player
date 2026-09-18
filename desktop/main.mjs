@@ -426,7 +426,8 @@ async function setupControlBar() {
   // 竖直居中放在封面上方那块空隙里
   const y = geo.y + Math.max(4, Math.round((geo.gap - BAR_H) / 2))
   // 宽度取内容区的一半 —— 之前和内容区同宽（763px）太长了，看着像把标题区盖住
-  const w = Math.max(420, Math.round(geo.w * 0.5))
+  // 下限 460：加关闭按钮后，太窄会把档位滑块挤没（按钮占 26+16 间距）
+  const w = Math.max(460, Math.round(geo.w * 0.5))
 
   log(`[bar] 空隙 y=${geo.y}..${geo.coverTop}（${geo.gap}px），悬浮条放 ${geo.x},${y} ${w}x${BAR_H}`)
 
@@ -454,6 +455,18 @@ async function setupControlBar() {
       } catch (e) { log('[bar] 切主题失败: ' + e.message) }
       // 动画 5 秒，等它走完再同步状态
       setTimeout(syncBar, 5600)
+    },
+
+    /*
+     * 点关闭按钮 → 退出整个播放器。
+     *
+     * 为什么不在页面里直接 window.close()：壁纸窗口挂在 WorkerW 上，
+     * window.close() 不一定能触发主进程的收尾（定时器、自己拉起的服务进程）。
+     * 走 app.quit() 才会经过 before-quit，把那些都收干净。
+     */
+    onClose: () => {
+      log('[bar] 用户点了关闭 → 退出播放器')
+      app.quit()
     },
   })
 
